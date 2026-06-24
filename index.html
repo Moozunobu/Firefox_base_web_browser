@@ -35,7 +35,7 @@
       --toolbar-bg:    #f9f9fb;
       --border:        rgba(0, 0, 0, 0.15);
       --text-main:     #15141a;
-      --text-muted:  #15141a;
+      --text-muted:    #15141a;
       --text-dim:      #5b5b66;
       --accent:        #0060df;
       --urlbar-bg:     #ffffff;
@@ -61,7 +61,7 @@
       width: 100%; position: relative; overflow: hidden;
     }
     #main-panel {
-      display: flex; flex-direction: column; flex: 1; min-width: 0;
+      display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0;
     }
 
     /* ─── 水平タブバー (Firefox Floating Tab) ─── */
@@ -136,29 +136,49 @@
     }
     #url-bar:hover { background-color: color-mix(in srgb, var(--urlbar-bg) 85%, var(--text-main) 15%); }
     #url-bar:focus { border-color: var(--accent); background: var(--urlbar-bg); box-shadow: 0 0 0 2px rgba(0, 96, 223, 0.4); }
-    #url-bar-lock { position: absolute; left: 12px; font-size: 14px; color: var(--text-dim); pointer-events: none; display: flex; align-items: center; }
+    #url-bar-lock { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-dim); pointer-events: none; display: flex; align-items: center; }
     #url-bar-go {
       position: absolute; right: 8px; background: none; border: none; color: var(--text-dim);
       cursor: pointer; font-size: 16px; padding: 0; transition: color 0.1s;
     }
     #url-bar-go:hover { color: var(--accent); }
 
-    /* ─── コンテンツエリア ─── */
-    #content-area { flex: 1; position: relative; overflow: hidden; background: var(--shell-bg); }
-    .page-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: none; }
+    /* ─── コンテンツエリア (iOS/Safariバグ対策のFlex化) ─── */
+    #content-area {
+      flex: 1; display: flex; flex-direction: column; min-height: 0;
+      position: relative; overflow: hidden; background: var(--shell-bg);
+    }
+    .page-frame { width: 100%; height: 100%; flex: 1; border: none; display: none; }
     .page-frame.active { display: block; }
     #loading-bar {
       position: absolute; top: 0; left: 0; height: 2px; background: var(--accent);
       z-index: 100; width: 0%; transition: width 0.25s ease; pointer-events: none;
     }
 
-    /* ─── 新規タブページ (Firefox Home Style) ─── */
+    /* ─── 新規タブページ (Firefox Home Style & iOS互換Flex化) ─── */
     .nt-page {
-      position: absolute; inset: 0; background: var(--ntpage-bg); display: none;
-      flex-direction: column; align-items: center; justify-content: center; gap: 32px;
+      width: 100%; height: 100%; flex: 1; background: var(--ntpage-bg); display: none;
+      flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     }
     .nt-page.active { display: flex; }
     .nt-heading { display: none !important; } /* スタイルの調和のため非表示、DOM構造は維持 */
+    
+    /* 検索カテゴリボタン用のスタイル (Firefox Pill Buttons) */
+    .nt-categories {
+      display: flex; gap: 10px; justify-content: center; margin-bottom: 4px;
+    }
+    .nt-cat-btn {
+      background: rgba(255, 255, 255, 0.1); color: var(--text-main); border: none;
+      padding: 8px 24px; font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: background-color 0.15s, color 0.15s; border-radius: 20px;
+    }
+    .nt-cat-btn:hover { background: rgba(255, 255, 255, 0.18); }
+    .nt-cat-btn.active { background: var(--accent); color: #ffffff; }
+
+    .theme-light .nt-cat-btn { background: rgba(0, 0, 0, 0.06); color: var(--text-main); }
+    .theme-light .nt-cat-btn:hover { background: rgba(0, 0, 0, 0.12); }
+    .theme-light .nt-cat-btn.active { background: var(--accent); color: #ffffff; }
+
     .nt-search-wrap { position: relative; width: 560px; max-width: 90%; }
     .nt-search-icon {
       position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
@@ -260,9 +280,9 @@
     .theme-light #console-run-btn { background: #0060df; }
     .theme-light #console-run-btn:hover { background: #004cb6; }
 
-    /* ─── エラーページ ─── */
+    /* ─── エラーページ (iOS互換Flex化) ─── */
     .error-page {
-      position: absolute; inset: 0; background: var(--ntpage-bg); display: none;
+      width: 100%; height: 100%; flex: 1; background: var(--ntpage-bg); display: none;
       flex-direction: column; align-items: center; justify-content: center; gap: 20px;
       color: var(--text-main); text-align: center; padding: 40px;
     }
@@ -511,6 +531,22 @@
     return "https://" + raw;
   }
 
+  // 選択されたカテゴリに応じたBing検索用URLを取得するヘルパー関数
+  function getSearchUrl(category, query) {
+    const encoded = encodeURIComponent(query);
+    switch (category) {
+      case 'images':
+        return "https://www.bing.com/images/search?q=" + encoded;
+      case 'videos':
+        return "https://www.bing.com/videos/search?q=" + encoded + "&&view=detail&mid";
+      case 'maps':
+        return "https://www.bing.com/maps/search?q=" + encoded;
+      case 'all':
+      default:
+        return "https://www.bing.com/search?q=" + encoded;
+    }
+  }
+
   let loadRAF = null;
   function startLoading() {
     let progress = 0;
@@ -574,6 +610,18 @@
     const heading = document.createElement("div");
     heading.className = "nt-heading";
     heading.textContent = "新しいタブ";
+
+    // ─── 検索カテゴリ要素の構築 ───
+    const catContainer = document.createElement("div");
+    catContainer.className = "nt-categories";
+    const categories = [
+      { id: 'all', label: 'すべて' },
+      { id: 'images', label: '画像' },
+      { id: 'videos', label: '動画' },
+      { id: 'maps', label: 'マップ' }
+    ];
+    let activeCategory = 'all';
+
     const searchWrap = document.createElement("div");
     searchWrap.className = "nt-search-wrap";
     const searchIcon = document.createElement("span");
@@ -585,9 +633,32 @@
     searchInput.className = "nt-search";
     searchInput.placeholder = "Bing で検索、またはURLを入力";
     searchInput.setAttribute("aria-label", "検索またはURLを入力");
-    searchInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") navigateTo(activeId, normalise(searchInput.value));
+
+    categories.forEach(cat => {
+      const catBtn = document.createElement("button");
+      catBtn.className = "nt-cat-btn" + (cat.id === activeCategory ? " active" : "");
+      catBtn.textContent = cat.label;
+      catBtn.addEventListener("click", () => {
+        catContainer.querySelectorAll(".nt-cat-btn").forEach(b => b.classList.remove("active"));
+        catBtn.classList.add("active");
+        activeCategory = cat.id;
+        
+        // 入力値が存在する場合、クリックした時点で即座にそのカテゴリで検索を実効
+        const query = searchInput.value.trim();
+        if (query) {
+          navigateTo(tabId, getSearchUrl(activeCategory, query));
+        }
+      });
+      catContainer.appendChild(catBtn);
     });
+
+    searchInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        const query = searchInput.value.trim();
+        if (query) navigateTo(activeId, getSearchUrl(activeCategory, query));
+      }
+    });
+
     const hint = document.createElement("div");
     hint.className = "nt-hint";
     hint.textContent = "Enter キーで移動";
@@ -596,6 +667,7 @@
     searchWrap.appendChild(searchIcon);
     searchWrap.appendChild(searchInput);
     el.appendChild(heading);
+    el.appendChild(catContainer); // 検索入力欄の上に配置
     el.appendChild(searchWrap);
     el.appendChild(hint);
     el.appendChild(sc);
