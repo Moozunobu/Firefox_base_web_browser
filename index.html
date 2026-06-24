@@ -5,23 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Browser v2</title>
   <style>
-    /* ─── 変数定義 ─── */
+    /* ─── 変数定義 (Firefox Proton UI) ─── */
     :root {
-      --shell-bg:    #1c1b22; --tabbar-bg:   #1c1b22; --tab-idle:    #2b2a33;
-      --tab-hover:   #3a3944; --tab-active:  #42414d; --toolbar-bg:  #42414d;
-      --border:      rgba(255,255,255,0.08); --text-main:   #f0f0f0;
-      --text-muted:  #aaa; --text-dim:    #666; --accent:      #8c82ff;
-      --urlbar-bg:   #1c1b22; --ntpage-bg:   #1c1b22; --shortcut-bg: #2b2a33;
-      --search-bg:   #2b2a33; --console-bg:  #181818;
-      --font-size-main: 13px; --font-size-small: 12px;
+      --shell-bg:      #1c1b22;       /* Inactive Tab area */
+      --tabbar-bg:     #1c1b22;
+      --tab-idle:      transparent;
+      --tab-hover:     rgba(255, 255, 255, 0.08);
+      --tab-active:    #2b2a33;       /* Active Tab (matches toolbar) */
+      --toolbar-bg:    #2b2a33;       /* Main Toolbar */
+      --border:        rgba(255, 255, 255, 0.15);
+      --text-main:     #fbfbfe;
+      --text-muted:    #fbfbfe;
+      --text-dim:      #94949b;
+      --accent:        #0060df;       /* Firefox Blue */
+      --urlbar-bg:     #1c1b22;
+      --ntpage-bg:     #2b2a33;
+      --shortcut-bg:   rgba(255, 255, 255, 0.05);
+      --search-bg:     #1c1b22;
+      --console-bg:    #1c1b22;
+      --font-size-main: 13px;
+      --font-size-small: 12px;
     }
     :root.theme-light {
-      --shell-bg:    #e9e9ed; --tabbar-bg:   #e9e9ed; --tab-idle:    #f5f5f7;
-      --tab-hover:   #e0e0e6; --tab-active:  #ffffff; --toolbar-bg:  #ffffff;
-      --border:      rgba(0,0,0,0.1); --text-main:   #222;
-      --text-muted:  #666; --text-dim:    #999; --accent:      #5a4fff;
-      --urlbar-bg:   #e9e9ed; --ntpage-bg:   #f5f5f7; --shortcut-bg: #e9e9ed;
-      --search-bg:   #e9e9ed; --console-bg:  #f0f0f0;
+      --shell-bg:      #e3e3e3;
+      --tabbar-bg:     #e3e3e3;
+      --tab-idle:      transparent;
+      --tab-hover:     rgba(0, 0, 0, 0.07);
+      --tab-active:    #f9f9fb;
+      --toolbar-bg:    #f9f9fb;
+      --border:        rgba(0, 0, 0, 0.15);
+      --text-main:     #15141a;
+      --text-muted:  #15141a;
+      --text-dim:      #5b5b66;
+      --accent:        #0060df;
+      --urlbar-bg:     #ffffff;
+      --ntpage-bg:     #f9f9fb;
+      --shortcut-bg:   rgba(0, 0, 0, 0.03);
+      --search-bg:     #ffffff;
+      --console-bg:    #ffffff;
     }
     body[data-font-size="small"] { --font-size-main: 12px; --font-size-small: 11px; }
     body[data-font-size="large"] { --font-size-main: 14px; --font-size-small: 13px; }
@@ -30,7 +51,7 @@
     html, body {
       height: 100%; height: 100dvh; overflow: hidden; position: fixed;
       width: 100%; top: 0; left: 0; background: var(--shell-bg);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: var(--text-main); font-size: var(--font-size-main);
     }
 
@@ -43,78 +64,79 @@
       display: flex; flex-direction: column; flex: 1; min-width: 0;
     }
 
-    /* ─── 水平タブバー (デフォルト) ─── */
+    /* ─── 水平タブバー (Firefox Floating Tab) ─── */
     #tab-bar {
-      display: flex; align-items: flex-end; background: var(--tabbar-bg);
-      padding: 8px 8px 0; gap: 2px; min-height: 46px;
-      overflow-x: auto; overflow-y: visible; scrollbar-width: none; flex-shrink: 0;
+      display: flex; align-items: center; background: var(--tabbar-bg);
+      padding: 4px 8px 0; gap: 4px; min-height: 44px;
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex-shrink: 0;
     }
     #tab-bar::-webkit-scrollbar { display: none; }
     .tab {
-      display: flex; align-items: center; gap: 7px; padding: 7px 10px 9px;
-      min-width: 130px; max-width: 220px; height: 36px;
-      background: var(--tab-idle); border-radius: 8px 8px 0 0;
-      cursor: pointer; font-size: var(--font-size-small); color: var(--text-muted);
+      display: flex; align-items: center; gap: 8px; padding: 0 10px;
+      min-width: 140px; max-width: 240px; height: 34px;
+      background: var(--tab-idle); border-radius: 4px;
+      cursor: pointer; font-size: var(--font-size-small); color: var(--text-dim);
       user-select: none; position: relative; flex-shrink: 0;
-      transition: background 0.12s, color 0.12s; border: 0.5px solid var(--border);
-      border-bottom: none;
+      transition: background-color 0.1s, color 0.1s;
+      border: none; margin-bottom: 4px;
     }
     .tab:hover { background: var(--tab-hover); color: var(--text-main); }
-    .tab.active { background: var(--tab-active); color: var(--text-main); z-index: 2; }
-    .tab.active::after {
-      content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
-      height: 1px; background: var(--tab-active);
-    }
-    .tab-favicon { font-size: var(--font-size-main); flex-shrink: 0; }
+    .tab.active { background: var(--tab-active); color: var(--text-main); z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .tab.active::after { display: none !important; }
+    .tab-favicon { font-size: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .tab-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* ─── 垂直タブバー (切り替え用) ─── */
+    /* ─── 垂直タブバー ─── */
     body.layout-vertical #browser { flex-direction: row; }
     body.layout-vertical #tab-bar {
       flex-direction: column; width: 240px; height: 100%;
-      align-items: stretch; padding: 8px; border-right: 1px solid var(--border);
+      align-items: stretch; padding: 8px; border-right: 1px solid var(--border); gap: 4px;
     }
     body.layout-vertical .tab {
-      max-width: none; min-width: 0; border-radius: 8px; border-bottom: 0.5px solid var(--border);
+      max-width: none; min-width: 0; border-radius: 4px; margin-bottom: 0; height: 36px;
     }
     body.layout-vertical .tab.active::after { display: none; }
 
     .tab-close {
-      width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 14px; color: var(--text-dim); cursor: pointer;
-      flex-shrink: 0; transition: background 0.1s, color 0.1s; line-height: 1;
+      width: 16px; height: 16px; border-radius: 2px; display: flex; align-items: center;
+      justify-content: center; font-size: 10px; color: var(--text-dim); cursor: pointer;
+      flex-shrink: 0; transition: background-color 0.1s, color 0.1s; line-height: 1; margin-left: auto;
     }
-    .tab-close:hover { background: rgba(0,0,0,0.1); color: var(--text-main); }
+    .tab-close:hover { background: rgba(255,255,255,0.15); color: var(--text-main); }
+    .theme-light .tab-close:hover { background: rgba(0,0,0,0.08); }
+
     #new-tab-btn {
-      width: 30px; height: 28px; background: transparent; border: none; border-radius: 50%;
-      color: var(--text-muted); font-size: 22px; cursor: pointer; display: flex; align-items: center;
-      justify-content: center; flex-shrink: 0; transition: background 0.1s, color 0.1s;
+      width: 28px; height: 28px; background: transparent; border: none; border-radius: 4px;
+      color: var(--text-main); font-size: 18px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: background-color 0.1s, color 0.1s;
       align-self: center; margin-bottom: 4px; line-height: 1;
     }
-    #new-tab-btn:hover { background: rgba(0,0,0,0.1); color: var(--text-main); }
+    #new-tab-btn:hover { background: var(--tab-hover); }
     body.layout-vertical #new-tab-btn { width: 100%; height: 36px; margin-top: 4px; margin-bottom: 0; }
 
     /* ─── ツールバー ─── */
     #toolbar {
-      background: var(--toolbar-bg); padding: 6px 10px; display: flex;
-      align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;
+      background: var(--toolbar-bg); padding: 6px 8px; display: flex;
+      align-items: center; gap: 6px; border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
     .nav-btn {
-      width: 30px; height: 30px; background: transparent; border: none; border-radius: 50%;
-      color: var(--text-main); font-size: 16px; cursor: pointer; display: flex;
-      align-items: center; justify-content: center; transition: background 0.1s; flex-shrink: 0;
+      width: 28px; height: 28px; background: transparent; border: none; border-radius: 4px;
+      color: var(--text-main); font-size: 14px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: background-color 0.1s; flex-shrink: 0;
     }
-    .nav-btn:hover:not(:disabled) { background: rgba(0,0,0,0.08); }
+    .nav-btn:hover:not(:disabled) { background: var(--tab-hover); }
     .nav-btn:disabled { color: var(--text-dim); cursor: default; opacity: 0.3; }
+
     #url-bar-wrap { flex: 1; position: relative; display: flex; align-items: center; }
     #url-bar {
       width: 100%; height: 32px; background: var(--urlbar-bg);
-      border: 1.5px solid var(--border); border-radius: 16px; padding: 0 36px 0 36px;
+      border: 1px solid transparent; border-radius: 4px; padding: 0 36px;
       color: var(--text-main); font-size: var(--font-size-main); font-family: inherit;
-      outline: none; transition: border-color 0.15s, background 0.15s;
+      outline: none; transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
-    #url-bar:focus { border-color: var(--accent); background: color-mix(in srgb, var(--urlbar-bg) 80%, var(--accent)); }
-    #url-bar-lock { position: absolute; left: 12px; font-size: var(--font-size-main); color: var(--text-dim); pointer-events: none; }
+    #url-bar:hover { background-color: color-mix(in srgb, var(--urlbar-bg) 85%, var(--text-main) 15%); }
+    #url-bar:focus { border-color: var(--accent); background: var(--urlbar-bg); box-shadow: 0 0 0 2px rgba(0, 96, 223, 0.4); }
+    #url-bar-lock { position: absolute; left: 12px; font-size: 14px; color: var(--text-dim); pointer-events: none; display: flex; align-items: center; }
     #url-bar-go {
       position: absolute; right: 8px; background: none; border: none; color: var(--text-dim);
       cursor: pointer; font-size: 16px; padding: 0; transition: color 0.1s;
@@ -126,91 +148,137 @@
     .page-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: none; }
     .page-frame.active { display: block; }
     #loading-bar {
-      position: absolute; top: 0; left: 0; height: 3px; background: var(--accent);
-      border-radius: 0 2px 2px 0; z-index: 100; width: 0%;
-      transition: width 0.25s ease; pointer-events: none;
+      position: absolute; top: 0; left: 0; height: 2px; background: var(--accent);
+      z-index: 100; width: 0%; transition: width 0.25s ease; pointer-events: none;
     }
 
-    /* ─── 新規タブページ ─── */
+    /* ─── 新規タブページ (Firefox Home Style) ─── */
     .nt-page {
       position: absolute; inset: 0; background: var(--ntpage-bg); display: none;
-      flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+      flex-direction: column; align-items: center; justify-content: center; gap: 32px;
     }
     .nt-page.active { display: flex; }
-    .nt-heading { font-size: 22px; font-weight: 400; color: var(--text-muted); letter-spacing: 0.02em; }
-    .nt-search-wrap { position: relative; width: 360px; }
+    .nt-heading { display: none !important; } /* スタイルの調和のため非表示、DOM構造は維持 */
+    .nt-search-wrap { position: relative; width: 560px; max-width: 90%; }
     .nt-search-icon {
       position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-      font-size: 16px; color: var(--text-dim); pointer-events: none;
+      font-size: 18px; color: var(--text-dim); pointer-events: none;
     }
     .nt-search {
-      width: 100%; height: 46px; background: var(--search-bg); border: 1.5px solid var(--border);
-      border-radius: 23px; padding: 0 18px 0 42px; color: var(--text-main);
-      font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s, background 0.15s;
+      width: 100%; height: 48px; background: var(--search-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0 18px 0 48px; color: var(--text-main);
+      font-size: 14px; font-family: inherit; outline: none; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .nt-search:focus { border-color: var(--accent); background: color-mix(in srgb, var(--search-bg) 80%, var(--accent)); }
-    .nt-hint { font-size: 11px; color: var(--text-dim); margin-top: -16px; }
-    .shortcuts { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
-    .shortcut { display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; opacity: 0.72; transition: opacity 0.15s, transform 0.15s; width: 80px; }
-    .shortcut:hover { opacity: 1; transform: translateY(-2px); }
+    .theme-light .nt-search { box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    .nt-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 96, 223, 0.3); }
+    .nt-hint { display: none !important; } /* DOM構造は維持しつつ非表示化 */
+    
+    .shortcuts {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 16px; width: 560px; max-width: 90%; justify-content: center;
+    }
+    .shortcut { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.12s; width: 80px; }
+    .shortcut:hover { transform: none; }
     .shortcut-icon {
-      width: 56px; height: 56px; background: var(--shortcut-bg); border-radius: 14px;
-      display: flex; align-items: center; justify-content: center; font-size: 24px;
-      border: 0.5px solid var(--border); transition: background 0.15s;
+      width: 64px; height: 64px; background: var(--shortcut-bg); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+      border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background-color 0.12s, box-shadow 0.12s;
     }
-    .shortcut:hover .shortcut-icon { background: var(--tab-hover); }
+    .shortcut:hover .shortcut-icon { background: var(--tab-hover); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
     .shortcut-label {
-      font-size: 11px; color: var(--text-dim); text-align: center; width: 100%;
+      font-size: 12px; color: var(--text-main); text-align: center; width: 100%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
     /* ─── 設定パネル ─── */
     #settings-panel {
-      position: absolute; top: 0; right: 0; width: 300px; height: 100%;
-      background: var(--shell-bg); border-left: 1px solid var(--border);
+      position: absolute; top: 0; right: 0; width: 320px; height: 100%;
+      background: var(--toolbar-bg); border-left: 1px solid var(--border);
       z-index: 300; display: flex; flex-direction: column;
-      transform: translateX(100%); transition: transform 0.25s ease-in-out;
+      transform: translateX(100%); transition: transform 0.2s cubic-bezier(0.075, 0.82, 0.165, 1);
+      box-shadow: -2px 0 12px rgba(0,0,0,0.2);
     }
     #settings-panel.active { transform: translateX(0); }
     .settings-header {
-      padding: 10px 15px; border-bottom: 1px solid var(--border);
+      padding: 16px; border-bottom: 1px solid var(--border);
       display: flex; justify-content: space-between; align-items: center;
       flex-shrink: 0;
     }
-    .settings-title { font-weight: bold; font-size: 14px; }
-    .settings-close { font-size: 20px; cursor: pointer; color: var(--text-dim); }
+    .settings-title { font-weight: 600; font-size: 14px; }
+    .settings-close { font-size: 24px; cursor: pointer; color: var(--text-dim); line-height: 1; }
     .settings-close:hover { color: var(--text-main); }
-    .settings-body { flex: 1; overflow-y: auto; padding: 20px 15px; }
+    .settings-body { flex: 1; overflow-y: auto; padding: 16px; }
     .setting-group { margin-bottom: 24px; }
-    .setting-group-title { font-weight: bold; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; }
-    .setting-option { display: flex; flex-direction: column; gap: 8px; }
-    .setting-option label { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-main); cursor: pointer; }
-    .setting-option select {
-      width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border);
-      background: var(--urlbar-bg); color: var(--text-main); font-family: inherit;
+    .setting-group-title { font-weight: 600; font-size: 11px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .setting-option { display: flex; flex-direction: column; gap: 10px; }
+    .setting-option label { display: flex; align-items: center; gap: 10px; font-size: var(--font-size-main); cursor: pointer; user-select: none; }
+    
+    /* ラジオボタンのFirefox風カスタム化 */
+    .setting-option input[type="radio"] {
+      appearance: none; background-color: transparent; margin: 0; font: inherit;
+      color: var(--accent); width: 16px; height: 16px; border: 1.5px solid var(--text-dim);
+      border-radius: 50%; display: grid; place-content: center; cursor: pointer;
     }
+    .setting-option input[type="radio"]::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      transform: scale(0); transition: 120ms transform ease-in-out; background-color: var(--accent);
+    }
+    .setting-option input[type="radio"]:checked { border-color: var(--accent); }
+    .setting-option input[type="radio"]:checked::before { transform: scale(1); }
 
-    /* ─── コマンドライン ─── */
+    .setting-option select {
+      width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--urlbar-bg); color: var(--text-main); font-family: inherit; outline: none;
+    }
+    .setting-option select:focus { border-color: var(--accent); }
+
+    /* ─── コマンドライン (Firefox DevTools Style) ─── */
     #console-panel {
-      position: absolute; bottom: 0; left: 0; right: 0; height: 220px; background: var(--console-bg);
-      border-top: 2px solid #333; display: none; flex-direction: column;
-      font-family: 'Courier New', Courier, monospace; color: #00ff66; flex-shrink: 0; z-index: 200;
+      position: absolute; bottom: 0; left: 0; right: 0; height: 240px; background: #1c1b22;
+      border-top: 1px solid var(--border); display: none; flex-direction: column;
+      font-family: 'Courier New', Courier, monospace; color: #f5f6f7; flex-shrink: 0; z-index: 200;
     }
     #console-panel.active { display: flex; }
-    .theme-light #console-panel { border-top-color: #ccc; }
-    .theme-light #console-header { background: #ddd; border-bottom-color: #ccc; color: #555; }
-    .theme-light #console-close { color: #777; }
-    .theme-light #console-close:hover { color: #000; }
-    .theme-light #console-body { color: #008822; }
-    .theme-light #console-footer { background: #e0e0e0; border-top-color: #ccc; }
-    .theme-light #console-prompt { color: #008822; }
-    .theme-light #console-input { color: #111; }
-    .theme-light #console-run-btn { background: #ccc; color: #333; }
-    .theme-light #console-run-btn:hover { background: #bbb; color: #000; }
-    #console-header{background:#222;padding:6px 12px;font-size:11px;color:#aaa;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333}#console-title{font-weight:700}#console-close{cursor:pointer;font-size:14px;color:#888}#console-close:hover{color:#fff}#console-body{flex:1;padding:10px;overflow-y:auto;font-size:12px;line-height:1.4;white-space:pre-wrap}#console-footer{display:flex;border-top:1px solid #333;background:#1e1e1e}#console-prompt{padding:8px 6px 8px 12px;color:#00ff66;font-size:13px;user-select:none}#console-input{flex:1;background:transparent;border:none;color:#fff;padding:8px 4px;font-family:inherit;font-size:13px;outline:0}#console-run-btn{background:#333;border:none;color:#ccc;padding:0 16px;cursor:pointer;font-family:inherit;font-size:12px;transition:background .1s,color .1s}#console-run-btn:hover{background:#444;color:#fff}
+    #console-header { background: #2b2a33; padding: 8px 12px; font-size: 12px; color: #f5f6f7; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    #console-title { font-weight: 700; }
+    #console-close { cursor: pointer; font-size: 18px; color: var(--text-dim); }
+    #console-close:hover { color: var(--text-main); }
+    #console-body { flex: 1; padding: 12px; overflow-y: auto; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+    #console-footer { display: flex; border-top: 1px solid var(--border); background: #2b2a33; align-items: center; }
+    #console-prompt { padding-left: 12px; color: #3582e1; font-size: 13px; font-weight: bold; user-select: none; }
+    #console-input { flex: 1; background: transparent; border: none; color: #f5f6f7; padding: 10px 6px; font-family: inherit; font-size: 13px; outline: 0; }
+    #console-run-btn { background: var(--accent); border: none; color: #fff; padding: 0 18px; height: 38px; cursor: pointer; font-family: inherit; font-size: 12px; transition: background-color .1s; }
+    #console-run-btn:hover { background: #004cb6; }
+
+    /* ライトテーマ用コンソール色変更 */
+    .theme-light #console-panel { background: #ffffff; border-top-color: var(--border); color: #15141a; }
+    .theme-light #console-header { background: #f0f0f4; border-bottom-color: var(--border); color: #15141a; }
+    .theme-light #console-footer { background: #f0f0f4; border-top-color: var(--border); }
+    .theme-light #console-prompt { color: #0060df; }
+    .theme-light #console-input { color: #15141a; }
+    .theme-light #console-run-btn { background: #0060df; }
+    .theme-light #console-run-btn:hover { background: #004cb6; }
 
     /* ─── エラーページ ─── */
-    .error-page{position:absolute;inset:0;background:#1c1b22;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text-muted);text-align:center;padding:40px}.error-page.active{display:flex}.error-page .err-icon{font-size:48px;opacity:.4}.error-page .err-title{font-size:20px;color:#ddd}.error-page .err-desc{font-size:13px;line-height:1.6;max-width:400px;color:#888}.error-page .err-retry{margin-top:8px;padding:8px 20px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:20px;color:#ccc;font-size:13px;cursor:pointer;transition:background .12s;font-family:inherit}.error-page .err-retry:hover{background:rgba(255,255,255,.08)}
+    .error-page {
+      position: absolute; inset: 0; background: var(--ntpage-bg); display: none;
+      flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      color: var(--text-main); text-align: center; padding: 40px;
+    }
+    .error-page.active { display: flex; }
+    .error-page .err-icon {
+      font-size: 48px; background: rgba(251, 74, 74, 0.1); border-radius: 50%;
+      width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;
+    }
+    .error-page .err-title { font-size: 22px; font-weight: 600; color: var(--text-main); }
+    .error-page .err-desc { font-size: 14px; line-height: 1.6; max-width: 480px; color: var(--text-dim); }
+    .error-page .err-retry {
+      margin-top: 12px; padding: 8px 24px; background: var(--accent); border: none;
+      border-radius: 4px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background-color 0.15s; font-family: inherit;
+    }
+    .error-page .err-retry:hover { background: #004cb6; }
   </style>
 </head>
 <body>
@@ -438,7 +506,7 @@
     if (!raw) return null;
     if (/^https?:\/\//i.test(raw)) return raw;
     if (/\s/.test(raw) || !/\./.test(raw)) {
-      return "https://www.google.com/search?q=" + encodeURIComponent(raw);
+      return "https://www.bing.com/search?q=" + encodeURIComponent(raw);
     }
     return "https://" + raw;
   }
@@ -515,7 +583,7 @@
     const searchInput = document.createElement("input");
     searchInput.type = "text";
     searchInput.className = "nt-search";
-    searchInput.placeholder = "Google で検索、またはURLを入力";
+    searchInput.placeholder = "Bing で検索、またはURLを入力";
     searchInput.setAttribute("aria-label", "検索またはURLを入力");
     searchInput.addEventListener("keydown", e => {
       if (e.key === "Enter") navigateTo(activeId, normalise(searchInput.value));
