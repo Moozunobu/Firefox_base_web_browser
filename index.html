@@ -143,7 +143,7 @@
     }
     #url-bar-go:hover { color: var(--accent); }
 
-    /* ─── コンテンツエリア (iOS/Safariバグ対策のFlex化) ─── */
+    /* ─── コンテンツエリア (iOS/Safariバグ対策 of Flex) ─── */
     #content-area {
       flex: 1; display: flex; flex-direction: column; min-height: 0;
       position: relative; overflow: hidden; background: var(--shell-bg);
@@ -419,6 +419,14 @@
     /* ─── ロビー画面 ─── */
     #view-lobby { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .lobby-title { padding: 12px 16px; font-size: 14px; color: #666; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* クリック可能なユーザー名（破線下線を表示） */
+    #lobby-username-tag {
+      font-size: 13px; color: var(--line-green); font-weight: bold; cursor: pointer;
+      text-decoration: underline; text-decoration-style: dashed; transition: opacity 0.1s;
+    }
+    #lobby-username-tag:hover { opacity: 0.8; }
+
     .room-list { flex: 1; overflow-y: auto; list-style: none; }
     .room-item {
       display: flex; align-items: center; gap: 12px; padding: 14px 16px;
@@ -478,7 +486,7 @@
     .setting-item input:focus { border-color: var(--line-green); }
     .btn-save { padding: 12px; background: var(--line-green); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
     
-    /* ─── モーダル ─── */
+    /* ─── 各種モーダル ─── */
     .modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
       align-items: center; justify-content: center; padding: 16px; z-index: 1000;
@@ -508,7 +516,7 @@
   <div id="view-lobby">
     <div class="lobby-title">
       <span>トーク一覧</span>
-      <span id="lobby-username-tag" style="font-size:12px; color:var(--line-green)"></span>
+      <span id="lobby-username-tag">取得中...</span>
     </div>
     <ul class="room-list" id="room-list-container"></ul>
     <button class="btn-create" id="btn-open-create-modal">＋ 新しいトークルームを作成</button>
@@ -523,14 +531,10 @@
     </div>
   </div>
 
-  <!-- ─── 設定・プロフィール画面 ─── -->
+  <!-- ─── 設定・プロフィール画面 (接続設定専用) ─── -->
   <div id="view-settings">
-    <div class="setting-item">
-      <label>表示ユーザー名</label>
-      <input type="text" id="input-username" placeholder="ユーザー名を入力" />
-    </div>
-    <div style="border-top: 1px solid #ddd; padding-top: 15px;">
-      <h4 style="font-size:13px; color:#555; margin-bottom:10px;">Supabase 設定 (任意)</h4>
+    <div style="padding-top: 10px;">
+      <h4 style="font-size:13px; color:#555; margin-bottom:10px;">Supabase 設定</h4>
       <p style="font-size:11px; color:#888; margin-bottom:10px;">リアルタイム接続を行うために、取得した「URL」と「anon key」を入力してください。</p>
       <div class="setting-item">
         <label>Supabase URL</label>
@@ -541,7 +545,7 @@
         <textarea id="input-supabase-key" rows="4" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
       </div>
     </div>
-    <button class="btn-save" id="btn-save-settings">保存して戻る</button>
+    <button class="btn-save" id="btn-save-settings" style="margin-top:20px;">保存して戻る</button>
   </div>
 
   <!-- ─── トークルーム作成モーダル ─── -->
@@ -566,6 +570,37 @@
     </div>
   </div>
 
+  <!-- ─── パスコード入力モーダル (設定の保護) ─── -->
+  <div class="modal" id="modal-passcode">
+    <div class="modal-content">
+      <div class="modal-title">管理者認証</div>
+      <div class="setting-item">
+        <label>設定を開くにはパスキーを入力してください</label>
+        <input type="password" id="input-passcode" placeholder="パスキーを入力" style="margin-top: 8px;" />
+        <div id="passcode-error" style="color: #ff3333; font-size: 12px; margin-top: 6px; display: none; font-weight: bold;">パスキーが一致しません。</div>
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="btn-passcode-cancel">キャンセル</button>
+        <button class="modal-btn confirm" id="btn-passcode-confirm">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ユーザー名変更モーダル (暗証番号なし・誰でも自由に変更可能) ─── -->
+  <div class="modal" id="modal-change-username">
+    <div class="modal-content">
+      <div class="modal-title">プロフィールの編集</div>
+      <div class="setting-item">
+        <label>新しいユーザー名を入力してください</label>
+        <input type="text" id="input-new-username" placeholder="ユーザー名" style="margin-top: 8px;" autocomplete="off" />
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="btn-username-cancel">キャンセル</button>
+        <button class="modal-btn confirm" id="btn-username-confirm">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── アプリメインロジック ─── -->
   \x3Cscript\x3E
     (function() {
@@ -575,7 +610,6 @@
       function getLocalDB() {
         const raw = localStorage.getItem(DB_KEY);
         if (raw) return JSON.parse(raw);
-        // ご要望どおり、履歴・部屋一覧が完全に「空」の状態から開始
         const defaultDB = {
           rooms: [],
           messages: {}
@@ -588,20 +622,69 @@
         localStorage.setItem(DB_KEY, JSON.stringify(db));
       }
 
+      // ─── IPベースのユーザー名管理システム ───
+      const USER_MAP_KEY = 'wetalks_ip_username_map';
       const SESSION_USER_KEY = 'wetalks_session_user';
-      function getSessionUser() {
-        let name = sessionStorage.getItem(SESSION_USER_KEY);
-        if (!name) {
-          name = 'ユーザー' + Math.floor(1000 + Math.random() * 9000);
-          sessionStorage.setItem(SESSION_USER_KEY, name);
+      let currentIp = "unknown_ip";
+
+      // 外部APIを叩いてIPアドレスを取得し、環境に紐づいたユーザー名を呼び出す
+      async function fetchUserIpAndInitName() {
+        try {
+          const res = await fetch("https://api.ipify.org?format=json");
+          const data = await res.json();
+          if (data && data.ip) {
+            currentIp = data.ip;
+          }
+        } catch (e) {
+          console.warn("IP Address API Fetch error, using default device storage fallback.", e);
         }
-        return name;
+        initUsernameByIp();
+      }
+
+      function initUsernameByIp() {
+        let map = {};
+        try {
+          const raw = localStorage.getItem(USER_MAP_KEY);
+          if (raw) map = JSON.parse(raw);
+        } catch(e) {}
+
+        // このIPに対する名前がすでにローカルストレージにあるか確認
+        let name = map[currentIp];
+        if (!name) {
+          // なければ初回のみランダムな数値を生成して保存
+          name = 'ユーザー' + Math.floor(1000 + Math.random() * 9000);
+          map[currentIp] = name;
+          localStorage.setItem(USER_MAP_KEY, JSON.stringify(map));
+        }
+
+        // セッション及び画面上に名前を設定
+        sessionStorage.setItem(SESSION_USER_KEY, name);
+        DOM.lobbyUsernameTag.textContent = name;
+      }
+
+      function getSessionUser() {
+        return sessionStorage.getItem(SESSION_USER_KEY) || "ユーザー";
+      }
+
+      // ユーザー名の自由なアップデート処理
+      function updateUsernameByIp(newName) {
+        sessionStorage.setItem(SESSION_USER_KEY, newName);
+        DOM.lobbyUsernameTag.textContent = newName;
+
+        let map = {};
+        try {
+          const raw = localStorage.getItem(USER_MAP_KEY);
+          if (raw) map = JSON.parse(raw);
+        } catch(e) {}
+
+        // IPとユーザー名の紐づけ情報をローカルストレージに記憶
+        map[currentIp] = newName;
+        localStorage.setItem(USER_MAP_KEY, JSON.stringify(map));
       }
 
       let currentView = 'lobby';
       let activeRoomId = null;
       
-      // Supabaseのコネクション状態
       let supabaseClient = null;
       let msgChannel = null;
 
@@ -618,7 +701,6 @@
         btnSend: document.getElementById('btn-send'),
         lobbyUsernameTag: document.getElementById('lobby-username-tag'),
         btnSaveSettings: document.getElementById('btn-save-settings'),
-        inputUsername: document.getElementById('input-username'),
         inputSupabaseUrl: document.getElementById('input-supabase-url'),
         inputSupabaseKey: document.getElementById('input-supabase-key'),
         modalCreate: document.getElementById('modal-create-room'),
@@ -626,14 +708,24 @@
         btnCreateCancel: document.getElementById('btn-create-cancel'),
         btnCreateConfirm: document.getElementById('btn-create-confirm'),
         inputNewRoomName: document.getElementById('input-new-room-name'),
-        selectNewRoomType: document.getElementById('select-new-room-type')
+        selectNewRoomType: document.getElementById('select-new-room-type'),
+        // パスコードモーダル用
+        modalPasscode: document.getElementById('modal-passcode'),
+        inputPasscode: document.getElementById('input-passcode'),
+        btnPasscodeCancel: document.getElementById('btn-passcode-cancel'),
+        btnPasscodeConfirm: document.getElementById('btn-passcode-confirm'),
+        passcodeError: document.getElementById('passcode-error'),
+        // ユーザー名変更モーダル用
+        modalUsername: document.getElementById('modal-change-username'),
+        inputNewUsername: document.getElementById('input-new-username'),
+        btnUsernameCancel: document.getElementById('btn-username-cancel'),
+        btnUsernameConfirm: document.getElementById('btn-username-confirm')
       };
 
       function initSupabase() {
         let url = localStorage.getItem('wetalks_supabase_url');
         let key = localStorage.getItem('wetalks_supabase_key');
         
-        // ローカルストレージに設定がない場合、取得したデフォルト接続情報を自動で割り当て
         if (!url || !key) {
           url = 'https://nsyvlftqcciyetsbhymg.supabase.co';
           key = 'sb_publishable_lkhrFuMlNyEmUX4RTFApKw_AhD1sAkV';
@@ -643,7 +735,6 @@
         
         if (url && key) {
           try {
-            // CDNからロードされたグローバルオブジェクトから初期化
             supabaseClient = supabase.createClient(url, key);
             console.log("Supabase Client initialized successfully.");
           } catch(e) {
@@ -671,8 +762,7 @@
         } else if (view === 'settings') {
           DOM.btnBack.style.visibility = 'visible';
           DOM.btnToSettings.style.visibility = 'hidden';
-          DOM.titleText.textContent = 'プロフィール設定';
-          DOM.inputUsername.value = getSessionUser();
+          DOM.titleText.textContent = '接続キー設定';
           DOM.inputSupabaseUrl.value = localStorage.getItem('wetalks_supabase_url') || '';
           DOM.inputSupabaseKey.value = localStorage.getItem('wetalks_supabase_key') || '';
         }
@@ -736,13 +826,11 @@
         DOM.roomList.appendChild(li);
       }
 
-      // トーク履歴の取得・監視
       async function renderMessages() {
         if (!activeRoomId) return;
         DOM.messageContainer.innerHTML = '';
 
         if (supabaseClient) {
-          // Supabaseから履歴取得
           const { data } = await supabaseClient
             .from('messages')
             .select('*')
@@ -753,7 +841,6 @@
             data.forEach(msg => appendMessageBubble(msg));
           }
           
-          // リアルタイム通信の購読設定
           if (msgChannel) {
             supabaseClient.removeChannel(msgChannel);
           }
@@ -766,7 +853,6 @@
             .subscribe();
 
         } else {
-          // オフラインストレージから取得
           const db = getLocalDB();
           const msgs = db.messages[activeRoomId] || [];
           msgs.forEach(msg => appendMessageBubble(msg));
@@ -807,7 +893,6 @@
         if (supabaseClient) {
           await supabaseClient.from('messages').insert([msg]);
         } else {
-          // オフライン用保存処理
           const db = getLocalDB();
           if (!db.messages[activeRoomId]) db.messages[activeRoomId] = [];
           
@@ -855,15 +940,49 @@
         }
       });
 
+      // 設定パネルへの遷移イベント（パスキーでロック）
       DOM.btnToSettings.addEventListener('click', () => {
-        switchView('settings');
+        DOM.inputPasscode.value = '';
+        DOM.passcodeError.style.display = 'none';
+        DOM.modalPasscode.classList.add('active');
+        DOM.inputPasscode.focus();
+      });
+
+      DOM.btnPasscodeCancel.addEventListener('click', () => {
+        DOM.modalPasscode.classList.remove('active');
+      });
+
+      DOM.btnPasscodeConfirm.addEventListener('click', () => {
+        const pass = DOM.inputPasscode.value;
+        if (pass === 'mozunbu_1203') {
+          DOM.modalPasscode.classList.remove('active');
+          switchView('settings');
+        } else {
+          DOM.passcodeError.style.display = 'block';
+        }
+      });
+
+      // ─── ユーザー名タップによる、暗証番号なし・その場での名前変更イベント ───
+      DOM.lobbyUsernameTag.addEventListener('click', () => {
+        DOM.inputNewUsername.value = getSessionUser();
+        DOM.modalUsername.classList.add('active');
+        DOM.inputNewUsername.focus();
+      });
+
+      DOM.btnUsernameCancel.addEventListener('click', () => {
+        DOM.modalUsername.classList.remove('active');
+      });
+
+      DOM.btnUsernameConfirm.addEventListener('click', () => {
+        const newName = DOM.inputNewUsername.value.trim();
+        if (newName) {
+          updateUsernameByIp(newName);
+          DOM.modalUsername.classList.remove('active');
+          renderLobby();
+        }
       });
 
       DOM.btnSaveSettings.addEventListener('click', () => {
-        const newName = DOM.inputUsername.value.trim();
-        if (newName) {
-          sessionStorage.setItem(SESSION_USER_KEY, newName);
-        }
         const newUrl = DOM.inputSupabaseUrl.value.trim();
         const newKey = DOM.inputSupabaseKey.value.trim();
         
@@ -903,8 +1022,11 @@
         }
       });
 
+      // 初始化処理：Supabase接続、および接続IP判定を完了したあとにLobbyを描画
       initSupabase();
-      switchView('lobby');
+      fetchUserIpAndInitName().then(() => {
+        switchView('lobby');
+      });
 
     })();
   \x3C/script\x3E
@@ -1028,7 +1150,6 @@
   }
 
   // ─── お気に入り ──────────────────────────────────────────────────────────
-  // We talksの接続URLをwetalks.chatに固定
   function getBookmarks() {
     const data = localStorage.getItem("my_browser_bookmarks");
     return data ? JSON.parse(data) : [
@@ -1288,7 +1409,7 @@
 
   function openTab(url) {
     const id = ++idCounter;
-    const tab = { id: id, title: "新しいタブ", favicon: "🌐", url: null, history: [], histIdx: -1 };
+    const tab = { id: id, title: "新しいタブ", favicon: "🌐", url: null, history: [], fontIdx: -1 };
     tabs.push(tab);
     const ntPage = buildNTPage(id);
     DOMElements.contentEl.appendChild(ntPage);
