@@ -61,7 +61,7 @@
       width: 100%; position: relative; overflow: hidden;
     }
     #main-panel {
-      display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0;
+      display: flex; flex-direction: column; flex: 1; min-height: 0;
     }
 
     /* ─── 水平タブバー (Firefox Floating Tab) ─── */
@@ -122,7 +122,7 @@
     .nav-btn {
       width: 28px; height: 28px; background: transparent; border: none; border-radius: 4px;
       color: var(--text-main); font-size: 14px; cursor: pointer; display: flex;
-      align-items: center; justify-content: center; transition: background-color 0.1s; flex-shrink: 0;
+      align-items: center; justify-content: center; transition: background-color 0.15s; flex-shrink: 0;
     }
     .nav-btn:hover:not(:disabled) { background: var(--tab-hover); }
     .nav-btn:disabled { color: var(--text-dim); cursor: default; opacity: 0.3; }
@@ -161,7 +161,7 @@
       flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     }
     .nt-page.active { display: flex; }
-    .nt-heading { display: none !important; } /* スタイルの調和のため非表示、DOM構造は維持 */
+    .nt-heading { display: none !important; }
     
     /* 検索カテゴリボタン用のスタイル (Firefox Pill Buttons) */
     .nt-categories {
@@ -192,7 +192,7 @@
     }
     .theme-light .nt-search { box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
     .nt-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 96, 223, 0.3); }
-    .nt-hint { display: none !important; } /* DOM構造は維持しつつ非表示化 */
+    .nt-hint { display: none !important; }
     
     .shortcuts {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -234,7 +234,6 @@
     .setting-option { display: flex; flex-direction: column; gap: 10px; }
     .setting-option label { display: flex; align-items: center; gap: 10px; font-size: var(--font-size-main); cursor: pointer; user-select: none; }
     
-    /* ラジオボタンのFirefox風カスタム化 */
     .setting-option input[type="radio"] {
       appearance: none; background-color: transparent; margin: 0; font: inherit;
       color: var(--accent); width: 16px; height: 16px; border: 1.5px solid var(--text-dim);
@@ -253,7 +252,7 @@
     }
     .setting-option select:focus { border-color: var(--accent); }
 
-    /* ─── コマンドライン (Firefox DevTools Style) ─── */
+    /* ─── コマンドライン ─── */
     #console-panel {
       position: absolute; bottom: 0; left: 0; right: 0; height: 240px; background: #1c1b22;
       border-top: 1px solid var(--border); display: none; flex-direction: column;
@@ -271,7 +270,6 @@
     #console-run-btn { background: var(--accent); border: none; color: #fff; padding: 0 18px; height: 38px; cursor: pointer; font-family: inherit; font-size: 12px; transition: background-color .1s; }
     #console-run-btn:hover { background: #004cb6; }
 
-    /* ライトテーマ用コンソール色変更 */
     .theme-light #console-panel { background: #ffffff; border-top-color: var(--border); color: #15141a; }
     .theme-light #console-header { background: #f0f0f4; border-bottom-color: var(--border); color: #15141a; }
     .theme-light #console-footer { background: #f0f0f4; border-top-color: var(--border); }
@@ -280,7 +278,7 @@
     .theme-light #console-run-btn { background: #0060df; }
     .theme-light #console-run-btn:hover { background: #004cb6; }
 
-    /* ─── エラーページ (iOS互換Flex化) ─── */
+    /* ─── エラーページ ─── */
     .error-page {
       width: 100%; height: 100%; flex: 1; background: var(--ntpage-bg); display: none;
       flex-direction: column; align-items: center; justify-content: center; gap: 20px;
@@ -389,6 +387,532 @@
   
   const BROWSER_VERSION = 'v2';
 
+  // ─── [We talks チャットアプリ] 仮想ソースコードの定義 ───────────────────────
+  // ブラウザのHTMLパーサによる誤認識を避けるため、scriptタグ全体を16進数文字コード(\x3C および \x3E)で安全に記述
+  const CHAT_APP_HTML = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --line-green: #06C755;
+      --chat-bg: #8cabd9;
+      --text-color: #1e1e1e;
+      --light-gray: #f4f4f4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      height: 100vh; display: flex; flex-direction: column; background: #fff; color: var(--text-color);
+    }
+    
+    /* ─── ヘッダー ─── */
+    .header {
+      background: var(--line-green); color: white; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; font-weight: bold; flex-shrink: 0;
+    }
+    .header-btn {
+      background: none; border: none; color: white; font-size: 16px; cursor: pointer; outline: none;
+    }
+
+    /* ─── ロビー画面 ─── */
+    #view-lobby { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .lobby-title { padding: 12px 16px; font-size: 14px; color: #666; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+    .room-list { flex: 1; overflow-y: auto; list-style: none; }
+    .room-item {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+      border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.1s;
+    }
+    .room-item:hover { background: #fafafa; }
+    .room-avatar {
+      width: 44px; height: 44px; background: #ddd; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 20px; color: white;
+    }
+    .room-info { flex: 1; }
+    .room-name { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+    .room-type { font-size: 11px; background: #eee; padding: 2px 6px; border-radius: 10px; color: #555; }
+    .btn-create {
+      margin: 16px; padding: 12px; background: var(--line-green); color: white;
+      border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
+    }
+
+    /* ─── トーク画面 ─── */
+    #view-chat { display: none; flex-direction: column; flex: 1; overflow: hidden; background: var(--chat-bg); }
+    .message-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    
+    .msg { display: flex; flex-direction: column; max-width: 75%; }
+    .msg-sender { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 3px; font-weight: bold; }
+    .msg-bubble { padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-all; }
+    
+    /* 自分（送信者）: 左側緑 */
+    .msg.me { align-self: flex-start; align-items: flex-start; }
+    .msg.me .msg-sender { align-self: flex-start; }
+    .msg.me .msg-bubble { background: #95ec69; color: #191919; border-top-left-radius: 2px; }
+
+    /* 相手: 右側白 */
+    .msg.other { align-self: flex-end; align-items: flex-end; }
+    .msg.other .msg-sender { align-self: flex-end; }
+    .msg.other .msg-bubble { background: #ffffff; color: #191919; border-top-right-radius: 2px; }
+
+    /* 送信フォーム */
+    .input-form {
+      display: flex; padding: 8px; background: white; border-top: 1px solid #ddd; gap: 8px; flex-shrink: 0;
+    }
+    .input-form input {
+      flex: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 16px; font-size: 14px; outline: none;
+    }
+    .input-form input:focus { border-color: var(--line-green); }
+    .input-form button {
+      background: var(--line-green); color: white; border: none; border-radius: 50%;
+      width: 40px; height: 40px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+
+    /* ─── 設定画面 ─── */
+    #view-settings { display: none; flex-direction: column; flex: 1; overflow-y: auto; padding: 16px; gap: 20px; }
+    .setting-item { display: flex; flex-direction: column; gap: 6px; }
+    .setting-item label { font-size: 13px; font-weight: bold; color: #666; }
+    .setting-item input, .setting-item textarea {
+      padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; outline: none; width: 100%;
+    }
+    .setting-item input:focus { border-color: var(--line-green); }
+    .btn-save { padding: 12px; background: var(--line-green); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
+    
+    /* ─── モーダル ─── */
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      align-items: center; justify-content: center; padding: 16px; z-index: 1000;
+    }
+    .modal.active { display: flex; }
+    .modal-content { background: white; border-radius: 8px; width: 100%; max-width: 320px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .modal-title { font-weight: bold; font-size: 16px; }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+    .modal-btn { padding: 8px 16px; border-radius: 4px; border: none; font-size: 13px; cursor: pointer; font-weight: bold; }
+    .modal-btn.cancel { background: #eee; color: #333; }
+    .modal-btn.confirm { background: var(--line-green); color: white; }
+  </style>
+  
+  <!-- Supabase CDN (v2) -->
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C/script\x3E
+</head>
+<body>
+
+  <!-- ─── ヘッダー ─── -->
+  <div class="header">
+    <button class="header-btn" id="btn-back" style="visibility: hidden;">&#10094; 戻る</button>
+    <span id="title-text">We talks</span>
+    <button class="header-btn" id="btn-to-settings">&#9881;</button>
+  </div>
+
+  <!-- ─── ロビー画面 ─── -->
+  <div id="view-lobby">
+    <div class="lobby-title">
+      <span>トーク一覧</span>
+      <span id="lobby-username-tag" style="font-size:12px; color:var(--line-green)"></span>
+    </div>
+    <ul class="room-list" id="room-list-container"></ul>
+    <button class="btn-create" id="btn-open-create-modal">＋ 新しいトークルームを作成</button>
+  </div>
+
+  <!-- ─── トーク画面 ─── -->
+  <div id="view-chat">
+    <div class="message-area" id="message-container"></div>
+    <div class="input-form">
+      <input type="text" id="msg-input" placeholder="メッセージを入力" autocomplete="off" />
+      <button id="btn-send">&#10148;</button>
+    </div>
+  </div>
+
+  <!-- ─── 設定・プロフィール画面 ─── -->
+  <div id="view-settings">
+    <div class="setting-item">
+      <label>表示ユーザー名</label>
+      <input type="text" id="input-username" placeholder="ユーザー名を入力" />
+    </div>
+    <div style="border-top: 1px solid #ddd; padding-top: 15px;">
+      <h4 style="font-size:13px; color:#555; margin-bottom:10px;">Supabase 設定 (任意)</h4>
+      <p style="font-size:11px; color:#888; margin-bottom:10px;">リアルタイム接続を行うために、取得した「URL」と「anon key」を入力してください。</p>
+      <div class="setting-item">
+        <label>Supabase URL</label>
+        <input type="text" id="input-supabase-url" placeholder="https://xxxxxxxxxxxxxx.supabase.co" />
+      </div>
+      <div class="setting-item" style="margin-top:10px;">
+        <label>Supabase anon key</label>
+        <textarea id="input-supabase-key" rows="4" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+      </div>
+    </div>
+    <button class="btn-save" id="btn-save-settings">保存して戻る</button>
+  </div>
+
+  <!-- ─── トークルーム作成モーダル ─── -->
+  <div class="modal" id="modal-create-room">
+    <div class="modal-content">
+      <div class="modal-title">新しいトーク</div>
+      <div class="setting-item">
+        <label>トークルーム名</label>
+        <input type="text" id="input-new-room-name" placeholder="例: 家族グループ、たかし" />
+      </div>
+      <div class="setting-item">
+        <label>タイプ</label>
+        <select id="select-new-room-type" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          <option value="direct">1対1</option>
+          <option value="group">グループ</option>
+        </select>
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="btn-create-cancel">キャンセル</button>
+        <button class="modal-btn confirm" id="btn-create-confirm">作成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── アプリメインロジック ─── -->
+  \x3Cscript\x3E
+    (function() {
+      'use strict';
+
+      const DB_KEY = 'wetalks_local_db_v3';
+      function getLocalDB() {
+        const raw = localStorage.getItem(DB_KEY);
+        if (raw) return JSON.parse(raw);
+        // ご要望どおり、履歴・部屋一覧が完全に「空」の状態から開始
+        const defaultDB = {
+          rooms: [],
+          messages: {}
+        };
+        localStorage.setItem(DB_KEY, JSON.stringify(defaultDB));
+        return defaultDB;
+      }
+
+      function saveLocalDB(db) {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+
+      const SESSION_USER_KEY = 'wetalks_session_user';
+      function getSessionUser() {
+        let name = sessionStorage.getItem(SESSION_USER_KEY);
+        if (!name) {
+          name = 'ユーザー' + Math.floor(1000 + Math.random() * 9000);
+          sessionStorage.setItem(SESSION_USER_KEY, name);
+        }
+        return name;
+      }
+
+      let currentView = 'lobby';
+      let activeRoomId = null;
+      
+      // Supabaseのコネクション状態
+      let supabaseClient = null;
+      let msgChannel = null;
+
+      const DOM = {
+        viewLobby: document.getElementById('view-lobby'),
+        viewChat: document.getElementById('view-chat'),
+        viewSettings: document.getElementById('view-settings'),
+        btnBack: document.getElementById('btn-back'),
+        btnToSettings: document.getElementById('btn-to-settings'),
+        titleText: document.getElementById('title-text'),
+        roomList: document.getElementById('room-list-container'),
+        messageContainer: document.getElementById('message-container'),
+        msgInput: document.getElementById('msg-input'),
+        btnSend: document.getElementById('btn-send'),
+        lobbyUsernameTag: document.getElementById('lobby-username-tag'),
+        btnSaveSettings: document.getElementById('btn-save-settings'),
+        inputUsername: document.getElementById('input-username'),
+        inputSupabaseUrl: document.getElementById('input-supabase-url'),
+        inputSupabaseKey: document.getElementById('input-supabase-key'),
+        modalCreate: document.getElementById('modal-create-room'),
+        btnOpenCreate: document.getElementById('btn-open-create-modal'),
+        btnCreateCancel: document.getElementById('btn-create-cancel'),
+        btnCreateConfirm: document.getElementById('btn-create-confirm'),
+        inputNewRoomName: document.getElementById('input-new-room-name'),
+        selectNewRoomType: document.getElementById('select-new-room-type')
+      };
+
+      function initSupabase() {
+        let url = localStorage.getItem('wetalks_supabase_url');
+        let key = localStorage.getItem('wetalks_supabase_key');
+        
+        // ローカルストレージに設定がない場合、取得したデフォルト接続情報を自動で割り当て
+        if (!url || !key) {
+          url = 'https://nsyvlftqcciyetsbhymg.supabase.co';
+          key = 'sb_publishable_lkhrFuMlNyEmUX4RTFApKw_AhD1sAkV';
+          localStorage.setItem('wetalks_supabase_url', url);
+          localStorage.setItem('wetalks_supabase_key', key);
+        }
+        
+        if (url && key) {
+          try {
+            // CDNからロードされたグローバルオブジェクトから初期化
+            supabaseClient = supabase.createClient(url, key);
+            console.log("Supabase Client initialized successfully.");
+          } catch(e) {
+            console.error("Supabase Connection Error:", e);
+          }
+        }
+      }
+
+      function switchView(view) {
+        currentView = view;
+        DOM.viewLobby.style.display = (view === 'lobby') ? 'flex' : 'none';
+        DOM.viewChat.style.display = (view === 'chat') ? 'flex' : 'none';
+        DOM.viewSettings.style.display = (view === 'settings') ? 'flex' : 'none';
+
+        if (view === 'lobby') {
+          DOM.btnBack.style.visibility = 'hidden';
+          DOM.btnToSettings.style.visibility = 'visible';
+          DOM.titleText.textContent = 'We talks';
+          activeRoomId = null;
+          renderLobby();
+        } else if (view === 'chat') {
+          DOM.btnBack.style.visibility = 'visible';
+          DOM.btnToSettings.style.visibility = 'hidden';
+          loadRoomTitleAndRender();
+        } else if (view === 'settings') {
+          DOM.btnBack.style.visibility = 'visible';
+          DOM.btnToSettings.style.visibility = 'hidden';
+          DOM.titleText.textContent = 'プロフィール設定';
+          DOM.inputUsername.value = getSessionUser();
+          DOM.inputSupabaseUrl.value = localStorage.getItem('wetalks_supabase_url') || '';
+          DOM.inputSupabaseKey.value = localStorage.getItem('wetalks_supabase_key') || '';
+        }
+      }
+
+      async function loadRoomTitleAndRender() {
+        if (supabaseClient) {
+          const { data } = await supabaseClient.from('rooms').select('*').eq('id', activeRoomId).single();
+          DOM.titleText.textContent = data ? data.name : 'トークルーム';
+        } else {
+          const db = getLocalDB();
+          const room = db.rooms.find(r => r.id === activeRoomId);
+          DOM.titleText.textContent = room ? room.name : 'トークルーム';
+        }
+        renderMessages();
+      }
+
+      async function renderLobby() {
+        DOM.lobbyUsernameTag.textContent = getSessionUser();
+        DOM.roomList.innerHTML = '';
+        
+        if (supabaseClient) {
+          const { data, error } = await supabaseClient.from('rooms').select('*');
+          if (data) {
+            data.forEach(room => appendRoomItem(room));
+          }
+        } else {
+          const db = getLocalDB();
+          db.rooms.forEach(room => appendRoomItem(room));
+        }
+      }
+
+      function appendRoomItem(room) {
+        const li = document.createElement('li');
+        li.className = 'room-item';
+        li.addEventListener('click', () => {
+          activeRoomId = room.id;
+          switchView('chat');
+        });
+
+        const avatar = document.createElement('div');
+        avatar.className = 'room-avatar';
+        avatar.textContent = room.type === 'group' ? '👥' : '👤';
+        if (room.type === 'group') avatar.style.background = '#4ec5f1';
+
+        const info = document.createElement('div');
+        info.className = 'room-info';
+        
+        const name = document.createElement('div');
+        name.className = 'room-name';
+        name.textContent = room.name;
+
+        const type = document.createElement('span');
+        type.className = 'room-type';
+        type.textContent = room.type === 'group' ? 'グループトーク' : '1対1トーク';
+
+        info.appendChild(name);
+        info.appendChild(type);
+        li.appendChild(avatar);
+        li.appendChild(info);
+        DOM.roomList.appendChild(li);
+      }
+
+      // トーク履歴の取得・監視
+      async function renderMessages() {
+        if (!activeRoomId) return;
+        DOM.messageContainer.innerHTML = '';
+
+        if (supabaseClient) {
+          // Supabaseから履歴取得
+          const { data } = await supabaseClient
+            .from('messages')
+            .select('*')
+            .eq('room_id', activeRoomId)
+            .order('id', { ascending: true });
+            
+          if (data) {
+            data.forEach(msg => appendMessageBubble(msg));
+          }
+          
+          // リアルタイム通信の購読設定
+          if (msgChannel) {
+            supabaseClient.removeChannel(msgChannel);
+          }
+          msgChannel = supabaseClient
+            .channel('public:messages')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'room_id=eq.' + activeRoomId }, payload => {
+              appendMessageBubble(payload.new);
+              DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
+            })
+            .subscribe();
+
+        } else {
+          // オフラインストレージから取得
+          const db = getLocalDB();
+          const msgs = db.messages[activeRoomId] || [];
+          msgs.forEach(msg => appendMessageBubble(msg));
+        }
+        DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
+      }
+
+      function appendMessageBubble(msg) {
+        const isMe = msg.sender === getSessionUser();
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg ' + (isMe ? 'me' : 'other');
+
+        if (!isMe) {
+          const senderName = document.createElement('div');
+          senderName.className = 'msg-sender';
+          senderName.textContent = msg.sender;
+          msgDiv.appendChild(senderName);
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.textContent = msg.text;
+
+        msgDiv.appendChild(bubble);
+        DOM.messageContainer.appendChild(msgDiv);
+      }
+
+      async function sendMessage() {
+        const text = DOM.msgInput.value.trim();
+        if (!text) return;
+
+        const msg = {
+          room_id: activeRoomId,
+          sender: getSessionUser(),
+          text: text
+        };
+
+        if (supabaseClient) {
+          await supabaseClient.from('messages').insert([msg]);
+        } else {
+          // オフライン用保存処理
+          const db = getLocalDB();
+          if (!db.messages[activeRoomId]) db.messages[activeRoomId] = [];
+          
+          const localMsg = {
+            id: 'm-' + Date.now(),
+            sender: msg.sender,
+            text: msg.text,
+            timestamp: Date.now()
+          };
+          db.messages[activeRoomId].push(localMsg);
+          saveLocalDB(db);
+          renderMessages();
+        }
+
+        DOM.msgInput.value = '';
+      }
+
+      async function createRoom() {
+        const name = DOM.inputNewRoomName.value.trim();
+        if (!name) return;
+        const type = DOM.selectNewRoomType.value;
+        const roomId = 'room-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+
+        if (supabaseClient) {
+          await supabaseClient.from('rooms').insert([{ id: roomId, name, type }]);
+        } else {
+          const db = getLocalDB();
+          db.rooms.push({ id: roomId, name, type });
+          db.messages[roomId] = [];
+          saveLocalDB(db);
+        }
+
+        DOM.inputNewRoomName.value = '';
+        DOM.modalCreate.classList.remove('active');
+        renderLobby();
+      }
+
+      DOM.btnBack.addEventListener('click', () => {
+        if (currentView === 'chat' || currentView === 'settings') {
+          if (msgChannel && supabaseClient) {
+            supabaseClient.removeChannel(msgChannel);
+            msgChannel = null;
+          }
+          switchView('lobby');
+        }
+      });
+
+      DOM.btnToSettings.addEventListener('click', () => {
+        switchView('settings');
+      });
+
+      DOM.btnSaveSettings.addEventListener('click', () => {
+        const newName = DOM.inputUsername.value.trim();
+        if (newName) {
+          sessionStorage.setItem(SESSION_USER_KEY, newName);
+        }
+        const newUrl = DOM.inputSupabaseUrl.value.trim();
+        const newKey = DOM.inputSupabaseKey.value.trim();
+        
+        if (newUrl && newKey) {
+          localStorage.setItem('wetalks_supabase_url', newUrl);
+          localStorage.setItem('wetalks_supabase_key', newKey);
+        } else {
+          localStorage.removeItem('wetalks_supabase_url');
+          localStorage.removeItem('wetalks_supabase_key');
+          supabaseClient = null;
+        }
+        
+        initSupabase();
+        switchView('lobby');
+      });
+
+      DOM.btnSend.addEventListener('click', sendMessage);
+      DOM.msgInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      DOM.btnOpenCreate.addEventListener('click', () => {
+        DOM.modalCreate.classList.add('active');
+      });
+      DOM.btnCreateCancel.addEventListener('click', () => {
+        DOM.modalCreate.classList.remove('active');
+      });
+      DOM.btnCreateConfirm.addEventListener('click', createRoom);
+
+      window.addEventListener('storage', e => {
+        if (e.key === DB_KEY) {
+          if (currentView === 'lobby') {
+            renderLobby();
+          } else if (currentView === 'chat') {
+            renderMessages();
+          }
+        }
+      });
+
+      initSupabase();
+      switchView('lobby');
+
+    })();
+  \x3C/script\x3E
+</body>
+</html>
+`;
+  // ─────────────────────────────────────────────────────────────────────────
+
   /* ─── DOM要素参照 ─── */
   const DOMElements = {
     body: document.body,
@@ -460,7 +984,7 @@
   }
 
   function executeCommand(input) {
-    const cmd = input.trim().toLowerCase(); // 大文字・小文字の区別をなくす
+    const cmd = input.trim().toLowerCase();
     if (!cmd) return;
     writeToConsole(`> ${input}`);
 
@@ -504,14 +1028,18 @@
   }
 
   // ─── お気に入り ──────────────────────────────────────────────────────────
+  // We talksの接続URLをwetalks.chatに固定
   function getBookmarks() {
     const data = localStorage.getItem("my_browser_bookmarks");
-    return data ? JSON.parse(data) : [{ label: "Wikipedia", url: "https://ja.wikipedia.org", icon: "📖" }];
+    return data ? JSON.parse(data) : [
+      { label: "Wikipedia", url: "https://ja.wikipedia.org", icon: "📖" },
+      { label: "We talks", url: "https://wetalks.chat", icon: "💬" }
+    ];
   }
   function saveBookmarks(bms) {
     localStorage.setItem("my_browser_bookmarks", JSON.stringify(bms));
   }
-  const FAVICON_MAP = { "wikipedia.org": "📖", "reddit.com": "📰", "amazon.co.jp": "📦", "amazon.com": "📦" };
+  const FAVICON_MAP = { "wikipedia.org": "📖", "reddit.com": "📰", "amazon.co.jp": "📦", "amazon.com": "📦", "wetalks.chat": "💬" };
   function getFavicon(url) {
     try {
       const host = (new URL(url)).hostname.replace(/^www\./, "");
@@ -531,7 +1059,6 @@
     return "https://" + raw;
   }
 
-  // 選択されたカテゴリに応じたBing検索用URLを取得するヘルパー関数
   function getSearchUrl(category, query) {
     const encoded = encodeURIComponent(query);
     switch (category) {
@@ -611,7 +1138,6 @@
     heading.className = "nt-heading";
     heading.textContent = "新しいタブ";
 
-    // ─── 検索カテゴリ要素の構築 ───
     const catContainer = document.createElement("div");
     catContainer.className = "nt-categories";
     const categories = [
@@ -643,7 +1169,6 @@
         catBtn.classList.add("active");
         activeCategory = cat.id;
         
-        // 入力値が存在する場合、クリックした時点で即座にそのカテゴリで検索を実効
         const query = searchInput.value.trim();
         if (query) {
           navigateTo(tabId, getSearchUrl(activeCategory, query));
@@ -667,7 +1192,7 @@
     searchWrap.appendChild(searchIcon);
     searchWrap.appendChild(searchInput);
     el.appendChild(heading);
-    el.appendChild(catContainer); // 検索入力欄の上に配置
+    el.appendChild(catContainer);
     el.appendChild(searchWrap);
     el.appendChild(hint);
     el.appendChild(sc);
@@ -742,7 +1267,6 @@
     }
   }
 
-  // 「戻る」「進む」ナビゲーションボタンの表示・活性状態の更新
   function updateNav(tab) {
     if (tab) {
       DOMElements.btnBack.disabled = tab.histIdx <= 0;
@@ -791,7 +1315,6 @@
     const tab = tabs.find(t => t.id === tabId);
     if (!tab) return;
 
-    // 履歴に移動を格納
     if (tab.history[tab.histIdx] !== url) {
       tab.history = tab.history.slice(0, tab.histIdx + 1);
       tab.history.push(url);
@@ -817,44 +1340,50 @@
     const iframe = document.createElement("iframe");
     iframe.className = "page-frame" + (activeId === tabId ? " active" : "");
     iframe.setAttribute("data-tabid", tabId);
-    iframe.setAttribute("title", tab.title);
-    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation");
-    iframe.src = url;
-
-    iframe.addEventListener("load", () => {
+    
+    // We talksのルーティング
+    if (url === 'https://wetalks.chat' || url === 'http://wetalks.chat') {
+      iframe.setAttribute("title", "We talks");
+      iframe.srcdoc = CHAT_APP_HTML;
       finishLoading();
-      try {
-        // 同一ドメイン内でのユーザーの自由なページ遷移を監視し、履歴に蓄積する処理
-        const currentIframeUrl = iframe.contentWindow.location.href;
-        if (currentIframeUrl && currentIframeUrl !== 'about:blank' && tab.url !== currentIframeUrl) {
-          tab.history = tab.history.slice(0, tab.histIdx + 1);
-          tab.history.push(currentIframeUrl);
-          tab.histIdx = tab.history.length - 1;
-          tab.url = currentIframeUrl;
-          if (activeId === tabId) {
-            updateUrlBar(tab);
-            updateNav(tab);
+    } else {
+      iframe.setAttribute("title", tab.title);
+      iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation");
+      iframe.src = url;
+
+      iframe.addEventListener("load", () => {
+        finishLoading();
+        try {
+          const currentIframeUrl = iframe.contentWindow.location.href;
+          if (currentIframeUrl && currentIframeUrl !== 'about:blank' && tab.url !== currentIframeUrl) {
+            tab.history = tab.history.slice(0, tab.histIdx + 1);
+            tab.history.push(currentIframeUrl);
+            tab.histIdx = tab.history.length - 1;
+            tab.url = currentIframeUrl;
+            if (activeId === tabId) {
+              updateUrlBar(tab);
+              updateNav(tab);
+            }
           }
-        }
-        
-        const t = iframe.contentDocument && iframe.contentDocument.title;
-        if (t) { tab.title = t; renderTabs(); }
-      } catch (_) {}
-    });
+          
+          const t = iframe.contentDocument && iframe.contentDocument.title;
+          if (t) { tab.title = t; renderTabs(); }
+        } catch (_) {}
+      });
 
-    iframe.addEventListener("error", () => {
-      finishLoading();
-      iframe.remove();
-      const err = buildErrorPage(tabId, url);
-      if (activeId === tabId) err.classList.add("active");
-      DOMElements.contentEl.appendChild(err);
-    });
+      iframe.addEventListener("error", () => {
+        finishLoading();
+        iframe.remove();
+        const err = buildErrorPage(tabId, url);
+        if (activeId === tabId) err.classList.add("active");
+        DOMElements.contentEl.appendChild(err);
+      });
+    }
 
     DOMElements.contentEl.appendChild(iframe);
     renderTabs();
   }
 
-  // 履歴の前後遷移
   function historyGo(delta) {
     const tab = tabs.find(t => t.id === activeId);
     if (!tab) return;
@@ -878,15 +1407,21 @@
       const iframe = document.createElement("iframe");
       iframe.className = "page-frame active";
       iframe.setAttribute("data-tabid", activeId);
-      iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation");
-      iframe.src = url;
-      iframe.addEventListener("load", () => {
+
+      if (url === 'https://wetalks.chat' || url === 'http://wetalks.chat') {
+        iframe.srcdoc = CHAT_APP_HTML;
         finishLoading();
-        try {
-          const t = iframe.contentDocument && iframe.contentDocument.title;
-          if (t) { tab.title = t; renderTabs(); }
-        } catch (_) {}
-      });
+      } else {
+        iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation");
+        iframe.src = url;
+        iframe.addEventListener("load", () => {
+          finishLoading();
+          try {
+            const t = iframe.contentDocument && iframe.contentDocument.title;
+            if (t) { tab.title = t; renderTabs(); }
+          } catch (_) {}
+        });
+      }
       DOMElements.contentEl.appendChild(iframe);
     }
   }
@@ -897,13 +1432,23 @@
     if (e.key === 'Enter') navigateTo(activeId, normalise(DOMElements.urlBar.value));
   });
   
-  // 戻る・進むボタンの動作割り当て
   DOMElements.btnBack.addEventListener('click', () => historyGo(-1));
   DOMElements.btnFwd.addEventListener('click', () => historyGo(1));
   
   DOMElements.btnReload.addEventListener('click', () => {
     const iframe = DOMElements.contentEl.querySelector(`iframe[data-tabid="${activeId}"]`);
-    if (iframe) { startLoading(); iframe.src = iframe.src; }
+    if (iframe) {
+      startLoading();
+      if (iframe.srcdoc) {
+        const temp = iframe.srcdoc;
+        iframe.srcdoc = '';
+        void iframe.offsetWidth;
+        iframe.srcdoc = temp;
+        finishLoading();
+      } else {
+        iframe.src = iframe.src;
+      }
+    }
   });
 
   // 設定パネル関係
