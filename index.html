@@ -334,8 +334,7 @@
         <span id="url-bar-lock">🔒</span>
         <input id="url-bar" type="text" autocomplete="off" spellcheck="false" placeholder="URLを入力" />
       </div>
-      <!-- 左右スプリット表示ボタン (◫) -->
-      <button class="nav-btn" id="btn-split" title="スプリットビュー（チャット常駐）">&#9707;</button>
+      <!-- 左右分割画面ボタンは非表示（ゲーム時に自動で画面分割されるため） -->
       <button class="nav-btn" id="btn-console" title="開発コンソール">&#128295;</button>
       <button class="nav-btn" id="btn-settings" title="設定">&#9881;</button>
     </div>
@@ -414,123 +413,8 @@
   
   const BROWSER_VERSION = 'v2';
 
-  // ─── [取扱説明書ガイド] 仮想ソースコードの定義 ──────────────────────────────────
-  const GUIDE_PAGE_HTML = `
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>取扱説明書マニュアル</title>
-  <style>
-    :root {
-      --bg: #1c1b22;
-      --panel: #2b2a33;
-      --accent: #0060df;
-      --text: #fbfbfe;
-      --text-dim: #94949b;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; margin: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg); color: var(--text); padding: 24px; line-height: 1.6; overflow-y: auto;
-    }
-    .wrapper { max-width: 720px; margin: 0 auto; }
-    .header { text-align: center; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
-    .header h1 { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
-    .header p { color: var(--text-dim); font-size: 14px; }
-    
-    .card { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
-    .card-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; }
-    
-    ul { padding-left: 20px; margin-bottom: 12px; }
-    li { margin-bottom: 6px; }
-    strong { color: #ffeb3b; }
-    
-    details { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; margin-top: 10px; cursor: pointer; }
-    summary { font-weight: bold; font-size: 14px; outline: none; user-select: none; }
-    details p { font-size: 13px; color: var(--text-dim); margin-top: 8px; padding-left: 8px; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    
-    <div class="header">
-      <h1>ℹ️ Browser v2 総合取扱説明書</h1>
-      <p>プレインストールされた各機能やオンラインゲームの接続方法をご案内します</p>
-    </div>
-
-    <!-- 1. 基本操作 -->
-    <div class="card">
-      <div class="card-title">🌐 ブラウザの基本操作</div>
-      <ul>
-        <li><strong>アドレスバー:</strong> 検索ワードを入力してEnterを押すと <strong>Bing</strong> で検索します。URLを入力して直接ページを開くことも可能です。</li>
-        <li><strong>履歴の戻る/進む (← / →):</strong> タブごとの閲覧履歴を行き来することができます。</li>
-        <li><strong>新規タブ (+):</strong> 複数のタブを同時に起動して使い分けられます。</li>
-      </ul>
-    </div>
-
-    <!-- 2. 自動画面分割 -->
-    <div class="card">
-      <div class="card-title">◫ ゲーム連動・自動画面分割（50:50スプリット）</div>
-      <ul>
-        <li>ヨットゲーム（🎲）やUNOゲーム（🃏）を新規起動、またはタブ切り替えした瞬間に、**自動的に画面がChrome同様の「50:50」に2分割**されます。</li>
-        <li>画面左側にゲーム本体、画面右側にチャットアプリ（We talks）が自動バインドされ、ゲームを遊んでいる間だけシームレスにチャットが常駐する設計になっています。</li>
-        <li>Wikipediaなどの通常Webサイトを閲覧する、またはこの取扱説明書を読んでいる間は分割は発生せず、広々と全面表示されます。</li>
-      </ul>
-    </div>
-
-    <!-- 3. We talks の使い方 -->
-    <div class="card">
-      <div class="card-title">💬 We talks（チャットアプリ）</div>
-      <ul>
-        <li><strong>IP連動ユーザー名:</strong> We talksを開くと、接続環境（IPアドレス）に基づいて自動で名前（例：ユーザー2944）が割り振られます。</li>
-        <li><strong>かんたんユーザー名変更:</strong> トーク一覧の右上に表示されているご自身の名前（緑色）をタップするだけで、パスキーなしで自由に名前変更ができます。一度変更すると同じIP環境であればブラウザを閉じても次回から名前が自動で引き継がれます。</li>
-        <li><strong>管理者キー設定:</strong> ⚙ボタンのSupabase設定の変更は、セキュアに管理するためパスキー <strong>「none」</strong> で無効化されています。</li>
-      </ul>
-    </div>
-
-    <!-- 4. 各種ゲームの対戦手順 -->
-    <div class="card">
-      <div class="card-title">🎲 プレインストールゲーム（ヨット・UNO）</div>
-      <p>いずれのゲームも「ソロプレイ（またはAI対戦）」と「オンライン対戦（他プレイヤーと同期）」に対応しています。</p>
-      
-      <details>
-        <summary>🎲 ヨット（ダイスゲーム）の遊び方</summary>
-        <p>5つのサイコロを振り、最大3回のロールの中で「フルハウス」や「ストレート」などの役を揃えて得点を競う人気ゲームです。</p>
-        <p><strong>オンライン対戦手順:</strong><br>
-        1. ロビー画面で、対戦相手と事前に決めた任意の「部屋コード（例：777）」を入力します。<br>
-        2. 「部屋に入る / 作成」をタップします。<br>
-        3. 相手も同じ部屋コードで入室すると、リアルタイムに対戦同期が開始されます。</p>
-      </details>
-
-      <details>
-        <summary>🃏 UNO（カードゲーム）の遊び方</summary>
-        <p>手札を場札の「色」か「数字」に合わせて出していき、最初に手札が0枚になったプレイヤーが勝利する大人気カードゲームです。</p>
-        <p><strong>オンライン対戦手順:</strong><br>
-        1. ヨットと同様に、対戦相手と「部屋コード（例：888）」を決めて入力欄に入力します。<br>
-        2. 「部屋に入る」を押して入室し、相手の接続が完了すると、手札を互いに同期してリアルタイム対戦が開始されます。</p>
-      </details>
-    </div>
-
-    <!-- 5. デベロッパー機能 -->
-    <div class="card" style="margin-bottom: 40px;">
-      <div class="card-title">🛠 デベロッパーコマンド</div>
-      <ul>
-        <li>ツールバーの <strong>🔧ボタン</strong> または <strong>F12キー</strong> を押すとデベロッパーコンソールが立ち上がります。以下のコマンドを入力して実行可能です。</li>
-        <li><code>this web in my book</code> : 現在開いているWebページをお気に入り（ショートカット）に追加します。</li>
-        <li><code>view-source</code> : 現在ページのHTMLソースを表示します。</li>
-        <li><code>clear</code> : ログ画面をきれいに掃除します。</li>
-        <li><code>help command ? -a</code> : コマンドヘルプを表示します。</li>
-      </ul>
-    </div>
-
-  </div>
-</body>
-</html>
-`;
-
   // ─── [We talks チャットアプリ] 仮想ソースコードの定義 ───────────────────────
+  // ブラウザのHTMLパーサによる誤認識を避けるため、すべてのscript閉じタグを「\x3C\x2Fscript\x3E」(スラッシュもエスケープ)で完全安全記述
   const CHAT_APP_HTML = `
 <!DOCTYPE html>
 <html lang="ja">
@@ -706,6 +590,15 @@
         <textarea id="input-supabase-key" rows="4" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
       </div>
     </div>
+    
+    <!-- トークルーム管理の追加（削除機能） -->
+    <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px;">
+      <h4 style="font-size:13px; color:#ff3b30; margin-bottom:10px;">トークルームの管理 (管理者用)</h4>
+      <ul id="settings-room-list" style="list-style:none; padding:0; display:flex; flex-direction:column; gap:8px;">
+        <!-- トークルームリストが動的に挿入されます -->
+      </ul>
+    </div>
+    
     <button class="btn-save" id="btn-save-settings" style="margin-top:20px;">保存して戻る</button>
   </div>
 
@@ -842,8 +735,78 @@
       
       let supabaseClient = null;
       let msgChannel = null;
-      let presenceChannel = null; // 全体オンライン人数追跡用
-      let roomPresenceMembers = []; // トークルーム内でのアクティブ既読メンバー
+      let presenceChannel = null;
+      let roomPresenceMembers = [];
+
+      // アクティビティ同期（オフライン・オンライン・既読用）
+      const ACTIVE_USERS_KEY = 'wetalks_active_users_in_rooms_v1';
+      let localPresenceInterval = null;
+
+      function startLocalPresence() {
+        if (localPresenceInterval) clearInterval(localPresenceInterval);
+        localPresenceInterval = setInterval(() => {
+          if (!activeRoomId) return;
+          let data = {};
+          try {
+            const raw = localStorage.getItem(ACTIVE_USERS_KEY);
+            if (raw) data = JSON.parse(raw);
+          } catch(e) {}
+          
+          if (!data[activeRoomId]) data[activeRoomId] = {};
+          data[activeRoomId][getSessionUser()] = Date.now();
+          localStorage.setItem(ACTIVE_USERS_KEY, JSON.stringify(data));
+          
+          updateReadReceipts();
+        }, 1000);
+      }
+
+      function stopLocalPresence() {
+        if (localPresenceInterval) {
+          clearInterval(localPresenceInterval);
+          localPresenceInterval = null;
+        }
+        if (!activeRoomId) return;
+        let data = {};
+        try {
+          const raw = localStorage.getItem(ACTIVE_USERS_KEY);
+          if (raw) data = JSON.parse(raw);
+        } catch(e) {}
+        if (data[activeRoomId]) {
+          delete data[activeRoomId][getSessionUser()];
+          localStorage.setItem(ACTIVE_USERS_KEY, JSON.stringify(data));
+        }
+      }
+
+      function updateReadReceipts() {
+        const myName = getSessionUser();
+        let otherActiveCount = 0;
+
+        if (supabaseClient) {
+          otherActiveCount = roomPresenceMembers.filter(member => member !== myName).length;
+        } else {
+          // ローカルアクティビティをもとに判定
+          let data = {};
+          try {
+            const raw = localStorage.getItem(ACTIVE_USERS_KEY);
+            if (raw) data = JSON.parse(raw);
+          } catch(e) {}
+          
+          const membersInRoom = data[activeRoomId] || {};
+          const now = Date.now();
+          const activeMembers = Object.keys(membersInRoom).filter(user => {
+            return user !== myName && (now - membersInRoom[user]) < 5000;
+          });
+          otherActiveCount = activeMembers.length;
+        }
+
+        document.querySelectorAll('.msg.me .msg-read-status').forEach(el => {
+          if (otherActiveCount > 0) {
+            el.textContent = otherActiveCount > 1 ? "既読 " + otherActiveCount : "既読";
+          } else {
+            el.textContent = "";
+          }
+        });
+      }
 
       // 未読件数の管理
       let unreadCounts = {};
@@ -881,7 +844,6 @@
         btnUsernameConfirm: document.getElementById('btn-username-confirm')
       };
 
-      // ─── Supabase初期化 ───
       function initSupabase() {
         let url = localStorage.getItem('wetalks_supabase_url');
         let key = localStorage.getItem('wetalks_supabase_key');
@@ -897,10 +859,7 @@
           try {
             supabaseClient = supabase.createClient(url, key);
             console.log("Supabase Client initialized successfully.");
-            
-            // 全体オンライン人数のリアルタイムPresence監視
             initGlobalPresence();
-            // グローバルメッセージ監視（未読カウント用）
             initGlobalMessageListener();
           } catch(e) {
             console.error("Supabase Connection Error:", e);
@@ -908,7 +867,6 @@
         }
       }
 
-      // 全体プレゼンス（オンライン人数）
       function initGlobalPresence() {
         if (!supabaseClient) return;
         presenceChannel = supabaseClient.channel('global-online-presence');
@@ -925,14 +883,12 @@
           });
       }
 
-      // 未読バッジ用の全自動グローバルメッセージリスナー
       function initGlobalMessageListener() {
         if (!supabaseClient) return;
         supabaseClient
           .channel('global-messages-unread')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
             const msg = payload.new;
-            // 自分が開いていない、かつ他の誰かが送ったメッセージであれば未読数を加算
             if (msg.room_id !== activeRoomId && msg.sender !== getSessionUser()) {
               unreadCounts[msg.room_id] = (unreadCounts[msg.room_id] || 0) + 1;
               if (currentView === 'lobby') {
@@ -958,8 +914,8 @@
         } else if (view === 'chat') {
           DOM.btnBack.style.visibility = 'visible';
           DOM.btnToSettings.style.visibility = 'hidden';
-          // トークを開いたらそのルームの未読数をゼロにする
           unreadCounts[activeRoomId] = 0;
+          startLocalPresence();
           loadRoomTitleAndRender();
         } else if (view === 'settings') {
           DOM.btnBack.style.visibility = 'visible';
@@ -967,6 +923,79 @@
           DOM.titleText.textContent = '接続キー設定';
           DOM.inputSupabaseUrl.value = localStorage.getItem('wetalks_supabase_url') || '';
           DOM.inputSupabaseKey.value = localStorage.getItem('wetalks_supabase_key') || '';
+          renderSettingsRoomList();
+        }
+      }
+
+      async function renderSettingsRoomList() {
+        const container = document.getElementById('settings-room-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        let rooms = [];
+        if (supabaseClient) {
+          const { data } = await supabaseClient.from('rooms').select('*');
+          if (data) rooms = data;
+        } else {
+          const db = getLocalDB();
+          rooms = db.rooms;
+        }
+
+        if (rooms.length === 0) {
+          container.innerHTML = '<li style="font-size:11px; color:#888;">作成されたルームはありません。</li>';
+          return;
+        }
+
+        rooms.forEach(room => {
+          const li = document.createElement('li');
+          li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.03); padding:8px 12px; border-radius:4px;';
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.style.cssText = 'font-size:13px; font-weight:bold;';
+          nameSpan.textContent = room.name;
+
+          const delBtn = document.createElement('button');
+          delBtn.style.cssText = 'background:#ff3b30; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold;';
+          delBtn.textContent = '削除';
+          delBtn.addEventListener('click', async () => {
+            // 文字列の結合時にiPadOSの不具合を招く可能性のある「バッククォート」を完全排除し、標準的な二重引用符に修正
+            if (confirm("本当に「" + room.name + "」トークルームと、その中のチャット履歴をすべて削除しますか？")) {
+              await deleteRoomAndMessages(room.id);
+              renderSettingsRoomList();
+              renderLobby();
+            }
+          });
+
+          li.appendChild(nameSpan);
+          li.appendChild(delBtn);
+          container.appendChild(li);
+        });
+      }
+
+      async function deleteRoomAndMessages(roomId) {
+        if (supabaseClient) {
+          await supabaseClient.from('messages').delete().eq('room_id', roomId);
+          await supabaseClient.from('rooms').delete().eq('id', roomId);
+          
+          const ch = supabaseClient.channel('global-lobby');
+          ch.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              ch.send({
+                type: 'broadcast',
+                event: 'room_deleted',
+                payload: { roomId }
+              }).then(() => {
+                supabaseClient.removeChannel(ch);
+              });
+            }
+          });
+        } else {
+          const db = getLocalDB();
+          db.rooms = db.rooms.filter(r => r.id !== roomId);
+          if (db.messages[roomId]) {
+            delete db.messages[roomId];
+          }
+          saveLocalDB(db);
         }
       }
 
@@ -987,7 +1016,7 @@
         DOM.roomList.innerHTML = '';
         
         if (supabaseClient) {
-          const { data } = await supabaseClient.from('rooms').select('*');
+          const { data, error } = await supabaseClient.from('rooms').select('*');
           if (data) {
             data.forEach(room => appendRoomItem(room));
           }
@@ -1040,7 +1069,6 @@
         DOM.roomList.appendChild(li);
       }
 
-      // 送信時刻用：時刻フォーマット整形
       function formatTime(createdAt) {
         const date = createdAt ? new Date(createdAt) : new Date();
         const hrs = String(date.getHours()).padStart(2, '0');
@@ -1067,7 +1095,6 @@
             supabaseClient.removeChannel(msgChannel);
           }
           
-          // ルーム専用チャンネルを作成（Postgres変化 & ルーム内の既読プレゼンス管理）
           msgChannel = supabaseClient.channel('room-' + activeRoomId);
           msgChannel
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'room_id=eq.' + activeRoomId }, payload => {
@@ -1075,7 +1102,6 @@
               DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
             })
             .on('presence', { event: 'sync' }, () => {
-              // トーク内に現在入っているアクティブなメンバーリストを取得して「既読」を更新
               const state = msgChannel.presenceState();
               roomPresenceMembers = Object.values(state).flatMap(presences => presences.map(p => p.user));
               updateReadReceipts();
@@ -1092,21 +1118,6 @@
           msgs.forEach(msg => appendMessageBubble(msg));
         }
         DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
-      }
-
-      // 既読ステータスの表示更新（相手がトークルームに常駐していれば即「既読」または「既読 X人」に変化）
-      function updateReadReceipts() {
-        const myName = getSessionUser();
-        // 自分以外のルーム内メンバー数を計測
-        const otherActiveCount = roomPresenceMembers.filter(member => member !== myName).length;
-
-        document.querySelectorAll('.msg.me .msg-read-status').forEach(el => {
-          if (otherActiveCount > 0) {
-            el.textContent = otherActiveCount > 1 ? "既読 " + otherActiveCount : "既読";
-          } else {
-            el.textContent = "";
-          }
-        });
       }
 
       function appendMessageBubble(msg) {
@@ -1128,17 +1139,27 @@
         bubble.className = 'msg-bubble';
         bubble.textContent = msg.text;
 
-        // メタ領域（時刻 ＆ 既読ステータス）
         const meta = document.createElement('div');
         meta.className = 'msg-meta';
         
         const readStatus = document.createElement('div');
         readStatus.className = 'msg-read-status';
         
-        // 既読情報の初期適用
-        if (isMe && supabaseClient) {
-          const myName = getSessionUser();
-          const otherActiveCount = roomPresenceMembers.filter(member => member !== myName).length;
+        if (isMe) {
+          let otherActiveCount = 0;
+          if (supabaseClient) {
+            otherActiveCount = roomPresenceMembers.filter(member => member !== getSessionUser()).length;
+          } else {
+            let data = {};
+            try {
+              const raw = localStorage.getItem(ACTIVE_USERS_KEY);
+              if (raw) data = JSON.parse(raw);
+            } catch(e) {}
+            const membersInRoom = data[activeRoomId] || {};
+            const now = Date.now();
+            otherActiveCount = Object.keys(membersInRoom).filter(u => u !== getSessionUser() && (now - membersInRoom[u]) < 5000).length;
+          }
+
           if (otherActiveCount > 0) {
             readStatus.textContent = otherActiveCount > 1 ? "既読 " + otherActiveCount : "既読";
           }
@@ -1255,7 +1276,6 @@
           DOM.modalUsername.classList.remove('active');
           renderLobby();
           
-          // プレゼンス全体の名前のトラッキングを更新
           if (presenceChannel) {
             presenceChannel.track({ user: newName, onlineAt: new Date().toISOString() });
           }
@@ -1302,7 +1322,25 @@
         }
       });
 
+      // 他クライアントからの部屋削除イベントを受け取るためのロビー・ブロードキャストチャンネル
+      function initGlobalDeleteListener() {
+        if (!supabaseClient) return;
+        const lobbyChannel = supabaseClient.channel('global-lobby-sync');
+        lobbyChannel
+          .on('broadcast', { event: 'room_deleted' }, ({ payload }) => {
+            const delId = payload.roomId;
+            if (activeRoomId === delId) {
+              alert("このトークルームは管理者に削除されました。");
+              switchView('lobby');
+            } else {
+              renderLobby();
+            }
+          })
+          .subscribe();
+      }
+
       initSupabase();
+      initGlobalDeleteListener();
       fetchUserIpAndInitName().then(() => {
         switchView('lobby');
       });
@@ -1378,7 +1416,7 @@
     
     .game-status-bar { padding: 8px; background: rgba(0,0,0,0.15); border-radius: 6px; font-size: 13px; text-align: center; font-weight: bold; }
   </style>
-  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C/script\x3E
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C\x2Fscript\x3E
 </head>
 <body>
 
@@ -2037,17 +2075,19 @@
         isMyTurn = false;
 
         if (isSolo) {
+          // AI処理へ転送
           updateUI();
           if (drawPenalty > 0) {
             for (let i = 0; i < drawPenalty; i++) oppHand.push(createRandomCard());
           }
           if (turnSkip) {
-            isMyTurn = true;
+            isMyTurn = true; // スキップされたので再び自分の番
             setTimeout(updateUI, 1000);
           } else {
             setTimeout(aiTurn, 1500);
           }
         } else {
+          // オンライン処理
           sendGameState(turnSkip, drawPenalty);
           updateUI();
         }
@@ -2268,7 +2308,7 @@
 </html>
 `;
 
-  // ─── DOM要素参照 ───
+  /* ─── DOM要素参照 ─── */
   const DOMElements = {
     body: document.body,
     tabBar: document.getElementById('tab-bar'),
@@ -2666,7 +2706,7 @@
 
   function openTab(url) {
     const id = ++idCounter;
-    // 履歴管理用変数のタイポを修正 (histIdx)
+    // タイポ（fontIdx）を正規の履歴インデックス変数（histIdx）に修復
     const tab = { id: id, title: "新しいタブ", favicon: "🌐", url: null, history: [], histIdx: -1 };
     tabs.push(tab);
     const ntPage = buildNTPage(id);
@@ -2867,22 +2907,6 @@
     if (e.target.id === 'language-select') settings.language = value;
     saveSettings();
     applySettings();
-  });
-  
-  // 左右分割画面（スプリット表示）トグル処理
-  DOMElements.btnSplit.addEventListener('click', () => {
-    isSplitActive = !isSplitActive;
-    DOMElements.body.classList.toggle('split-active', isSplitActive);
-    
-    if (isSplitActive) {
-      DOMElements.btnSplit.style.backgroundColor = 'var(--tab-active)';
-      DOMElements.btnSplit.style.color = 'var(--accent)';
-      DOMElements.splitChatFrame.srcdoc = CHAT_APP_HTML;
-    } else {
-      DOMElements.btnSplit.style.backgroundColor = 'transparent';
-      DOMElements.btnSplit.style.color = 'var(--text-main)';
-      DOMElements.splitChatFrame.srcdoc = '';
-    }
   });
 
   // コンソール関係
