@@ -286,7 +286,7 @@
     #console-prompt { padding-left: 12px; color: #3582e1; font-size: 13px; font-weight: bold; user-select: none; }
     #console-input { flex: 1; background: transparent; border: none; color: #f5f6f7; padding: 10px 6px; font-family: inherit; font-size: 13px; outline: 0; }
     #console-run-btn { background: var(--accent); border: none; color: #fff; padding: 0 18px; height: 38px; cursor: pointer; font-family: inherit; font-size: 12px; transition: background-color .1s; }
-    #console-run-btn:hover { background: #004cb6; }
+    #console-run-btn:hover { background: #004cb6; color: #fff; }
 
     .theme-light #console-panel { background: #ffffff; border-top-color: var(--border); color: #15141a; }
     .theme-light #console-header { background: #f0f0f4; border-bottom-color: var(--border); color: #15141a; }
@@ -334,7 +334,8 @@
         <span id="url-bar-lock">🔒</span>
         <input id="url-bar" type="text" autocomplete="off" spellcheck="false" placeholder="URLを入力" />
       </div>
-      <!-- 画面分割ボタンは手動操作を無くし、ゲーム起動時に完全自動トリガーにするため非表示化 -->
+      <!-- 左右スプリット表示ボタン (◫) -->
+      <button class="nav-btn" id="btn-split" title="スプリットビュー（チャット常駐）">&#9707;</button>
       <button class="nav-btn" id="btn-console" title="開発コンソール">&#128295;</button>
       <button class="nav-btn" id="btn-settings" title="設定">&#9881;</button>
     </div>
@@ -485,7 +486,7 @@
       <ul>
         <li><strong>IP連動ユーザー名:</strong> We talksを開くと、接続環境（IPアドレス）に基づいて自動で名前（例：ユーザー2944）が割り振られます。</li>
         <li><strong>かんたんユーザー名変更:</strong> トーク一覧の右上に表示されているご自身の名前（緑色）をタップするだけで、パスキーなしで自由に名前変更ができます。一度変更すると同じIP環境であればブラウザを閉じても次回から名前が自動で引き継がれます。</li>
-        <li><strong>管理者キー設定:</strong> ⚙ボタンのSupabase設定の変更は、セキュアに管理するためパスキー <strong>「none」</strong> で無効化中</li>
+        <li><strong>管理者キー設定:</strong> ⚙ボタンのSupabase設定の変更は、セキュアに管理するためパスキー <strong>「mozunbu_1203」</strong> でロックされています。</li>
       </ul>
     </div>
 
@@ -579,9 +580,18 @@
       width: 44px; height: 44px; background: #ddd; border-radius: 50%;
       display: flex; align-items: center; justify-content: center; font-size: 20px; color: white;
     }
-    .room-info { flex: 1; }
-    .room-name { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
-    .room-type { font-size: 11px; background: #eee; padding: 2px 6px; border-radius: 10px; color: #555; }
+    .room-info { flex: 1; display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .room-name-wrapper { display: flex; flex-direction: column; gap: 4px; }
+    .room-name { font-weight: bold; font-size: 15px; }
+    .room-type { font-size: 11px; background: #eee; padding: 2px 6px; border-radius: 10px; color: #555; align-self: flex-start; }
+    
+    /* 未読バッジ (LINEレッド) */
+    .room-unread-badge {
+      background: #ff3b30; color: white; border-radius: 50%; padding: 2px 6px;
+      font-size: 10px; font-weight: bold; min-width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center; margin-left: auto;
+    }
+
     .btn-create {
       margin: 16px; padding: 12px; background: var(--line-green); color: white;
       border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
@@ -591,18 +601,27 @@
     #view-chat { display: none; flex-direction: column; flex: 1; overflow: hidden; background: var(--chat-bg); }
     .message-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     
-    .msg { display: flex; flex-direction: column; max-width: 75%; }
+    .msg { display: flex; flex-direction: column; max-width: 80%; }
     .msg-sender { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 3px; font-weight: bold; }
-    .msg-bubble { padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-all; }
     
+    /* メッセージの構造（バルーン＋メタ情報） */
+    .msg-row { display: flex; align-items: flex-end; gap: 6px; }
+    .msg-bubble { padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-all; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    
+    /* メタ情報（時間・既読） */
+    .msg-meta { font-size: 9px; color: rgba(255,255,255,0.85); flex-shrink: 0; display: flex; flex-direction: column; gap: 1px; }
+    .msg-read-status { color: #fdf156; font-weight: bold; text-align: right; }
+
     /* 自分（送信者）: 左側緑 */
     .msg.me { align-self: flex-start; align-items: flex-start; }
     .msg.me .msg-sender { align-self: flex-start; }
+    .msg.me .msg-row { flex-direction: row; } /* バルーン -> メタの順 */
     .msg.me .msg-bubble { background: #95ec69; color: #191919; border-top-left-radius: 2px; }
 
     /* 相手: 右側白 */
     .msg.other { align-self: flex-end; align-items: flex-end; }
     .msg.other .msg-sender { align-self: flex-end; }
+    .msg.other .msg-row { flex-direction: row-reverse; } /* メタ -> バルーンの順 */
     .msg.other .msg-bubble { background: #ffffff; color: #191919; border-top-right-radius: 2px; }
 
     /* 送信フォーム */
@@ -657,7 +676,7 @@
   <!-- ─── ロビー画面 ─── -->
   <div id="view-lobby">
     <div class="lobby-title">
-      <span>トーク一覧</span>
+      <span id="lobby-online-count-tag">● オンライン: 取得中...</span>
       <span id="lobby-username-tag">取得中...</span>
     </div>
     <ul class="room-list" id="room-list-container"></ul>
@@ -823,6 +842,11 @@
       
       let supabaseClient = null;
       let msgChannel = null;
+      let presenceChannel = null; // 全体オンライン人数追跡用
+      let roomPresenceMembers = []; // トークルーム内でのアクティブ既読メンバー
+
+      // 未読件数の管理
+      let unreadCounts = {};
 
       const DOM = {
         viewLobby: document.getElementById('view-lobby'),
@@ -836,6 +860,7 @@
         msgInput: document.getElementById('msg-input'),
         btnSend: document.getElementById('btn-send'),
         lobbyUsernameTag: document.getElementById('lobby-username-tag'),
+        lobbyOnlineCountTag: document.getElementById('lobby-online-count-tag'),
         btnSaveSettings: document.getElementById('btn-save-settings'),
         inputSupabaseUrl: document.getElementById('input-supabase-url'),
         inputSupabaseKey: document.getElementById('input-supabase-key'),
@@ -856,6 +881,7 @@
         btnUsernameConfirm: document.getElementById('btn-username-confirm')
       };
 
+      // ─── Supabase初期化 ───
       function initSupabase() {
         let url = localStorage.getItem('wetalks_supabase_url');
         let key = localStorage.getItem('wetalks_supabase_key');
@@ -871,10 +897,50 @@
           try {
             supabaseClient = supabase.createClient(url, key);
             console.log("Supabase Client initialized successfully.");
+            
+            // 全体オンライン人数のリアルタイムPresence監視
+            initGlobalPresence();
+            // グローバルメッセージ監視（未読カウント用）
+            initGlobalMessageListener();
           } catch(e) {
             console.error("Supabase Connection Error:", e);
           }
         }
+      }
+
+      // 全体プレゼンス（オンライン人数）
+      function initGlobalPresence() {
+        if (!supabaseClient) return;
+        presenceChannel = supabaseClient.channel('global-online-presence');
+        presenceChannel
+          .on('presence', { event: 'sync' }, () => {
+            const state = presenceChannel.presenceState();
+            const count = Object.keys(state).length;
+            DOM.lobbyOnlineCountTag.textContent = "● オンライン: " + count + "人";
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              await presenceChannel.track({ user: getSessionUser(), onlineAt: new Date().toISOString() });
+            }
+          });
+      }
+
+      // 未読バッジ用の全自動グローバルメッセージリスナー
+      function initGlobalMessageListener() {
+        if (!supabaseClient) return;
+        supabaseClient
+          .channel('global-messages-unread')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+            const msg = payload.new;
+            // 自分が開いていない、かつ他の誰かが送ったメッセージであれば未読数を加算
+            if (msg.room_id !== activeRoomId && msg.sender !== getSessionUser()) {
+              unreadCounts[msg.room_id] = (unreadCounts[msg.room_id] || 0) + 1;
+              if (currentView === 'lobby') {
+                renderLobby();
+              }
+            }
+          })
+          .subscribe();
       }
 
       function switchView(view) {
@@ -892,6 +958,8 @@
         } else if (view === 'chat') {
           DOM.btnBack.style.visibility = 'visible';
           DOM.btnToSettings.style.visibility = 'hidden';
+          // トークを開いたらそのルームの未読数をゼロにする
+          unreadCounts[activeRoomId] = 0;
           loadRoomTitleAndRender();
         } else if (view === 'settings') {
           DOM.btnBack.style.visibility = 'visible';
@@ -919,7 +987,7 @@
         DOM.roomList.innerHTML = '';
         
         if (supabaseClient) {
-          const { data, error } = await supabaseClient.from('rooms').select('*');
+          const { data } = await supabaseClient.from('rooms').select('*');
           if (data) {
             data.forEach(room => appendRoomItem(room));
           }
@@ -945,19 +1013,39 @@
         const info = document.createElement('div');
         info.className = 'room-info';
         
+        const wrapper = document.createElement('div');
+        wrapper.className = 'room-name-wrapper';
         const name = document.createElement('div');
         name.className = 'room-name';
         name.textContent = room.name;
-
         const type = document.createElement('span');
         type.className = 'room-type';
         type.textContent = room.type === 'group' ? 'グループトーク' : '1対1トーク';
+        
+        wrapper.appendChild(name);
+        wrapper.appendChild(type);
+        info.appendChild(wrapper);
 
-        info.appendChild(name);
-        info.appendChild(type);
+        // 未読バッジの追加
+        const unread = unreadCounts[room.id] || 0;
+        if (unread > 0) {
+          const badge = document.createElement('span');
+          badge.className = 'room-unread-badge';
+          badge.textContent = unread;
+          info.appendChild(badge);
+        }
+
         li.appendChild(avatar);
         li.appendChild(info);
         DOM.roomList.appendChild(li);
+      }
+
+      // 送信時刻用：時刻フォーマット整形
+      function formatTime(createdAt) {
+        const date = createdAt ? new Date(createdAt) : new Date();
+        const hrs = String(date.getHours()).padStart(2, '0');
+        const mins = String(date.getMinutes()).padStart(2, '0');
+        return hrs + ':' + mins;
       }
 
       async function renderMessages() {
@@ -978,13 +1066,25 @@
           if (msgChannel) {
             supabaseClient.removeChannel(msgChannel);
           }
-          msgChannel = supabaseClient
-            .channel('public:messages')
+          
+          // ルーム専用チャンネルを作成（Postgres変化 & ルーム内の既読プレゼンス管理）
+          msgChannel = supabaseClient.channel('room-' + activeRoomId);
+          msgChannel
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'room_id=eq.' + activeRoomId }, payload => {
               appendMessageBubble(payload.new);
               DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
             })
-            .subscribe();
+            .on('presence', { event: 'sync' }, () => {
+              // トーク内に現在入っているアクティブなメンバーリストを取得して「既読」を更新
+              const state = msgChannel.presenceState();
+              roomPresenceMembers = Object.values(state).flatMap(presences => presences.map(p => p.user));
+              updateReadReceipts();
+            })
+            .subscribe(async (status) => {
+              if (status === 'SUBSCRIBED') {
+                await msgChannel.track({ user: getSessionUser() });
+              }
+            });
 
         } else {
           const db = getLocalDB();
@@ -992,6 +1092,21 @@
           msgs.forEach(msg => appendMessageBubble(msg));
         }
         DOM.messageContainer.scrollTop = DOM.messageContainer.scrollHeight;
+      }
+
+      // 既読ステータスの表示更新（相手がトークルームに常駐していれば即「既読」または「既読 X人」に変化）
+      function updateReadReceipts() {
+        const myName = getSessionUser();
+        // 自分以外のルーム内メンバー数を計測
+        const otherActiveCount = roomPresenceMembers.filter(member => member !== myName).length;
+
+        document.querySelectorAll('.msg.me .msg-read-status').forEach(el => {
+          if (otherActiveCount > 0) {
+            el.textContent = otherActiveCount > 1 ? "既読 " + otherActiveCount : "既読";
+          } else {
+            el.textContent = "";
+          }
+        });
       }
 
       function appendMessageBubble(msg) {
@@ -1006,11 +1121,39 @@
           msgDiv.appendChild(senderName);
         }
 
+        const msgRow = document.createElement('div');
+        msgRow.className = 'msg-row';
+
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble';
         bubble.textContent = msg.text;
 
-        msgDiv.appendChild(bubble);
+        // メタ領域（時刻 ＆ 既読ステータス）
+        const meta = document.createElement('div');
+        meta.className = 'msg-meta';
+        
+        const readStatus = document.createElement('div');
+        readStatus.className = 'msg-read-status';
+        
+        // 既読情報の初期適用
+        if (isMe && supabaseClient) {
+          const myName = getSessionUser();
+          const otherActiveCount = roomPresenceMembers.filter(member => member !== myName).length;
+          if (otherActiveCount > 0) {
+            readStatus.textContent = otherActiveCount > 1 ? "既読 " + otherActiveCount : "既読";
+          }
+        }
+
+        const time = document.createElement('div');
+        time.className = 'msg-time';
+        time.textContent = formatTime(msg.created_at);
+
+        meta.appendChild(readStatus);
+        meta.appendChild(time);
+        
+        msgRow.appendChild(bubble);
+        msgRow.appendChild(meta);
+        msgDiv.appendChild(msgRow);
         DOM.messageContainer.appendChild(msgDiv);
       }
 
@@ -1034,7 +1177,7 @@
             id: 'm-' + Date.now(),
             sender: msg.sender,
             text: msg.text,
-            timestamp: Date.now()
+            created_at: new Date().toISOString()
           };
           db.messages[activeRoomId].push(localMsg);
           saveLocalDB(db);
@@ -1111,6 +1254,11 @@
           updateUsernameByIp(newName);
           DOM.modalUsername.classList.remove('active');
           renderLobby();
+          
+          // プレゼンス全体の名前のトラッキングを更新
+          if (presenceChannel) {
+            presenceChannel.track({ user: newName, onlineAt: new Date().toISOString() });
+          }
         }
       });
 
@@ -1230,7 +1378,7 @@
     
     .game-status-bar { padding: 8px; background: rgba(0,0,0,0.15); border-radius: 6px; font-size: 13px; text-align: center; font-weight: bold; }
   </style>
-  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C\x2Fscript\x3E
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C/script\x3E
 </head>
 <body>
 
@@ -1735,7 +1883,7 @@
     (function() {
       'use strict';
 
-      // ─── 接続設定のロード ───
+      // ─── 接続設定 of Supabase ───
       let supabaseClient = null;
       let gameChannel = null;
       const url = localStorage.getItem('wetalks_supabase_url') || 'https://nsyvlftqcciyetsbhymg.supabase.co';
@@ -1812,7 +1960,6 @@
         DOM.discardContainer.innerHTML = '';
         if (discardPile.length > 0) {
           const topCard = discardPile[discardPile.length - 1];
-          // ワイルドカードの場合は、選択したアクティブ色を適用
           const displayCard = { ...topCard };
           if (topCard.color === 'wild' && activeColor) displayCard.color = activeColor;
           
@@ -1858,14 +2005,11 @@
         if (discardPile.length === 0) return true;
         const top = discardPile[discardPile.length - 1];
         
-        // ワイルドカードはいつでも出せる
         if (card.color === 'wild') return true;
 
-        // 色がマッチしている（場がワイルドの時は選択したアクティブ色が対象）
         const topColor = top.color === 'wild' ? activeColor : top.color;
         if (card.color === topColor) return true;
 
-        // 値がマッチしている
         if (card.value === top.value) return true;
 
         return false;
@@ -1877,7 +2021,6 @@
         const card = myHand.splice(idx, 1)[0];
         discardPile.push(card);
 
-        // 特殊効果の反映
         let turnSkip = false;
         let drawPenalty = 0;
 
@@ -1894,19 +2037,17 @@
         isMyTurn = false;
 
         if (isSolo) {
-          // AI処理へ転送
           updateUI();
           if (drawPenalty > 0) {
             for (let i = 0; i < drawPenalty; i++) oppHand.push(createRandomCard());
           }
           if (turnSkip) {
-            isMyTurn = true; // スキップされたので再び自分の番
+            isMyTurn = true;
             setTimeout(updateUI, 1000);
           } else {
             setTimeout(aiTurn, 1500);
           }
         } else {
-          // オンライン処理
           sendGameState(turnSkip, drawPenalty);
           updateUI();
         }
@@ -2726,6 +2867,22 @@
     if (e.target.id === 'language-select') settings.language = value;
     saveSettings();
     applySettings();
+  });
+  
+  // 左右分割画面（スプリット表示）トグル処理
+  DOMElements.btnSplit.addEventListener('click', () => {
+    isSplitActive = !isSplitActive;
+    DOMElements.body.classList.toggle('split-active', isSplitActive);
+    
+    if (isSplitActive) {
+      DOMElements.btnSplit.style.backgroundColor = 'var(--tab-active)';
+      DOMElements.btnSplit.style.color = 'var(--accent)';
+      DOMElements.splitChatFrame.srcdoc = CHAT_APP_HTML;
+    } else {
+      DOMElements.btnSplit.style.backgroundColor = 'transparent';
+      DOMElements.btnSplit.style.color = 'var(--text-main)';
+      DOMElements.splitChatFrame.srcdoc = '';
+    }
   });
 
   // コンソール関係
