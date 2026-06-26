@@ -143,21 +143,39 @@
     }
     #url-bar-go:hover { color: var(--accent); }
 
-    /* ─── コンテンツエリア (iOS/Safariバグ対策 of Flex) ─── */
+    /* ─── コアコンテンツ領域 (左右分割対応型) ─── */
     #content-area {
-      flex: 1; display: flex; flex-direction: column; min-height: 0;
+      flex: 1; display: flex; flex-direction: row; min-height: 0;
       position: relative; overflow: hidden; background: var(--shell-bg);
     }
-    .page-frame { width: 100%; height: 100%; flex: 1; border: none; display: none; }
-    .page-frame.active { display: block; }
-    #loading-bar {
-      position: absolute; top: 0; left: 0; height: 2px; background: var(--accent);
-      z-index: 100; width: 0%; transition: width 0.25s ease; pointer-events: none;
+    #left-pane {
+      flex: 1; height: 100%; position: relative; min-width: 0;
+    }
+    #right-pane {
+      width: 50%; /* Chrome同様、50:50の比率に設定 */
+      border-left: 1px solid var(--border); display: none;
+      height: 100%; background: var(--shell-bg); position: relative;
+    }
+    
+    /* 画面分割時に左側を確実に50%幅に抑制 */
+    body.split-active #left-pane {
+      width: 50%; flex: none;
+    }
+    body.split-active #right-pane {
+      display: flex;
+    }
+
+    /* iframe等、見切れバグを完全に抑制する絶対配置 */
+    .page-frame {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: none;
+    }
+    .page-frame.active {
+      display: block;
     }
 
     /* ─── 新規タブページ (Firefox Home Style & iOS互換Flex化) ─── */
     .nt-page {
-      width: 100%; height: 100%; flex: 1; background: var(--ntpage-bg); display: none;
+      position: absolute; inset: 0; width: 100%; height: 100%; background: var(--ntpage-bg); display: none;
       flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     }
     .nt-page.active { display: flex; }
@@ -278,9 +296,9 @@
     .theme-light #console-run-btn { background: #0060df; }
     .theme-light #console-run-btn:hover { background: #004cb6; }
 
-    /* ─── エラーページ ─── */
+    /* ─── エラーページ (iOS互換絶対配置型) ─── */
     .error-page {
-      width: 100%; height: 100%; flex: 1; background: var(--ntpage-bg); display: none;
+      position: absolute; inset: 0; width: 100%; height: 100%; background: var(--ntpage-bg); display: none;
       flex-direction: column; align-items: center; justify-content: center; gap: 20px;
       color: var(--text-main); text-align: center; padding: 40px;
     }
@@ -316,12 +334,20 @@
         <span id="url-bar-lock">🔒</span>
         <input id="url-bar" type="text" autocomplete="off" spellcheck="false" placeholder="URLを入力" />
       </div>
+      <!-- 画面分割ボタンは手動操作を無くし、ゲーム起動時に完全自動トリガーにするため非表示化 -->
       <button class="nav-btn" id="btn-console" title="開発コンソール">&#128295;</button>
       <button class="nav-btn" id="btn-settings" title="設定">&#9881;</button>
     </div>
 
+    <!-- コンテンツエリア（左側：ページ画面、右側：スプリット用チャットアプリ） -->
     <div id="content-area" role="main">
-      <div id="loading-bar"></div>
+      <div id="left-pane">
+        <div id="loading-bar"></div>
+      </div>
+      <div id="right-pane">
+        <!-- 画面分割時にチャットアプリを埋め込むための専用iframe -->
+        <iframe id="split-chat-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
     </div>
   </div>
 </div>
@@ -387,8 +413,123 @@
   
   const BROWSER_VERSION = 'v2';
 
+  // ─── [取扱説明書ガイド] 仮想ソースコードの定義 ──────────────────────────────────
+  const GUIDE_PAGE_HTML = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>取扱説明書マニュアル</title>
+  <style>
+    :root {
+      --bg: #1c1b22;
+      --panel: #2b2a33;
+      --accent: #0060df;
+      --text: #fbfbfe;
+      --text-dim: #94949b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); padding: 24px; line-height: 1.6; overflow-y: auto;
+    }
+    .wrapper { max-width: 720px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
+    .header h1 { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+    .header p { color: var(--text-dim); font-size: 14px; }
+    
+    .card { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+    .card-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; }
+    
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; }
+    strong { color: #ffeb3b; }
+    
+    details { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; margin-top: 10px; cursor: pointer; }
+    summary { font-weight: bold; font-size: 14px; outline: none; user-select: none; }
+    details p { font-size: 13px; color: var(--text-dim); margin-top: 8px; padding-left: 8px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    
+    <div class="header">
+      <h1>ℹ️ Browser v2 総合取扱説明書</h1>
+      <p>プレインストールされた各機能やオンラインゲームの接続方法をご案内します</p>
+    </div>
+
+    <!-- 1. 基本操作 -->
+    <div class="card">
+      <div class="card-title">🌐 ブラウザの基本操作</div>
+      <ul>
+        <li><strong>アドレスバー:</strong> 検索ワードを入力してEnterを押すと <strong>Bing</strong> で検索します。URLを入力して直接ページを開くことも可能です。</li>
+        <li><strong>履歴の戻る/進む (← / →):</strong> タブごとの閲覧履歴を行き来することができます。</li>
+        <li><strong>新規タブ (+):</strong> 複数のタブを同時に起動して使い分けられます。</li>
+      </ul>
+    </div>
+
+    <!-- 2. 自動画面分割 -->
+    <div class="card">
+      <div class="card-title">◫ ゲーム連動・自動画面分割（50:50スプリット）</div>
+      <ul>
+        <li>ヨットゲーム（🎲）やUNOゲーム（🃏）を新規起動、またはタブ切り替えした瞬間に、**自動的に画面がChrome同様の「50:50」に2分割**されます。</li>
+        <li>画面左側にゲーム本体、画面右側にチャットアプリ（We talks）が自動バインドされ、ゲームを遊んでいる間だけシームレスにチャットが常駐する設計になっています。</li>
+        <li>Wikipediaなどの通常Webサイトを閲覧する、またはこの取扱説明書を読んでいる間は分割は発生せず、広々と全面表示されます。</li>
+      </ul>
+    </div>
+
+    <!-- 3. We talks の使い方 -->
+    <div class="card">
+      <div class="card-title">💬 We talks（チャットアプリ）</div>
+      <ul>
+        <li><strong>IP連動ユーザー名:</strong> We talksを開くと、接続環境（IPアドレス）に基づいて自動で名前（例：ユーザー2944）が割り振られます。</li>
+        <li><strong>かんたんユーザー名変更:</strong> トーク一覧の右上に表示されているご自身の名前（緑色）をタップするだけで、パスキーなしで自由に名前変更ができます。一度変更すると同じIP環境であればブラウザを閉じても次回から名前が自動で引き継がれます。</li>
+        <li><strong>管理者キー設定:</strong> ⚙ボタンのSupabase設定の変更は、セキュアに管理するためパスキー <strong>「mozunbu_1203」</strong> でロックされています。</li>
+      </ul>
+    </div>
+
+    <!-- 4. 各種ゲームの対戦手順 -->
+    <div class="card">
+      <div class="card-title">🎲 プレインストールゲーム（ヨット・UNO）</div>
+      <p>いずれのゲームも「ソロプレイ（またはAI対戦）」と「オンライン対戦（他プレイヤーと同期）」に対応しています。</p>
+      
+      <details>
+        <summary>🎲 ヨット（ダイスゲーム）の遊び方</summary>
+        <p>5つのサイコロを振り、最大3回のロールの中で「フルハウス」や「ストレート」などの役を揃えて得点を競う人気ゲームです。</p>
+        <p><strong>オンライン対戦手順:</strong><br>
+        1. ロビー画面で、対戦相手と事前に決めた任意の「部屋コード（例：777）」を入力します。<br>
+        2. 「部屋に入る / 作成」をタップします。<br>
+        3. 相手も同じ部屋コードで入室すると、リアルタイムに対戦同期が開始されます。</p>
+      </details>
+
+      <details>
+        <summary>🃏 UNO（カードゲーム）の遊び方</summary>
+        <p>手札を場札の「色」か「数字」に合わせて出していき、最初に手札が0枚になったプレイヤーが勝利する大人気カードゲームです。</p>
+        <p><strong>オンライン対戦手順:</strong><br>
+        1. ヨットと同様に、対戦相手と「部屋コード（例：888）」を決めて入力欄に入力します。<br>
+        2. 「部屋に入る」を押して入室し、相手の接続が完了すると、手札を互いに同期してリアルタイム対戦が開始されます。</p>
+      </details>
+    </div>
+
+    <!-- 5. デベロッパー機能 -->
+    <div class="card" style="margin-bottom: 40px;">
+      <div class="card-title">🛠 デベロッパーコマンド</div>
+      <ul>
+        <li>ツールバーの <strong>🔧ボタン</strong> または <strong>F12キー</strong> を押すとデベロッパーコンソールが立ち上がります。以下のコマンドを入力して実行可能です。</li>
+        <li><code>this web in my book</code> : 現在開いているWebページをお気に入り（ショートカット）に追加します。</li>
+        <li><code>view-source</code> : 現在ページのHTMLソースを表示します。</li>
+        <li><code>clear</code> : ログ画面をきれいに掃除します。</li>
+        <li><code>help command ? -a</code> : コマンドヘルプを表示します。</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
+`;
+
   // ─── [We talks チャットアプリ] 仮想ソースコードの定義 ───────────────────────
-  // ブラウザのHTMLパーサによる誤認識を避けるため、scriptタグ全体を16進数文字コード(\x3C および \x3E)で安全に記述
   const CHAT_APP_HTML = `
 <!DOCTYPE html>
 <html lang="ja">
@@ -402,9 +543,10 @@
       --light-gray: #f4f4f4;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; margin: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      height: 100vh; display: flex; flex-direction: column; background: #fff; color: var(--text-color);
+      display: flex; flex-direction: column; background: #fff; color: var(--text-color); overflow: hidden;
     }
     
     /* ─── ヘッダー ─── */
@@ -501,7 +643,7 @@
   </style>
   
   <!-- Supabase CDN (v2) -->
-  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C/script\x3E
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C\x2Fscript\x3E
 </head>
 <body>
 
@@ -586,7 +728,7 @@
     </div>
   </div>
 
-  <!-- ─── ユーザー名変更モーダル (暗証番号なし・誰でも自由に変更可能) ─── -->
+  <!-- ─── ユーザー名変更モーダル ─── -->
   <div class="modal" id="modal-change-username">
     <div class="modal-content">
       <div class="modal-title">プロフィールの編集</div>
@@ -627,7 +769,6 @@
       const SESSION_USER_KEY = 'wetalks_session_user';
       let currentIp = "unknown_ip";
 
-      // 外部APIを叩いてIPアドレスを取得し、環境に紐づいたユーザー名を呼び出す
       async function fetchUserIpAndInitName() {
         try {
           const res = await fetch("https://api.ipify.org?format=json");
@@ -648,16 +789,13 @@
           if (raw) map = JSON.parse(raw);
         } catch(e) {}
 
-        // このIPに対する名前がすでにローカルストレージにあるか確認
         let name = map[currentIp];
         if (!name) {
-          // なければ初回のみランダムな数値を生成して保存
           name = 'ユーザー' + Math.floor(1000 + Math.random() * 9000);
           map[currentIp] = name;
           localStorage.setItem(USER_MAP_KEY, JSON.stringify(map));
         }
 
-        // セッション及び画面上に名前を設定
         sessionStorage.setItem(SESSION_USER_KEY, name);
         DOM.lobbyUsernameTag.textContent = name;
       }
@@ -666,7 +804,6 @@
         return sessionStorage.getItem(SESSION_USER_KEY) || "ユーザー";
       }
 
-      // ユーザー名の自由なアップデート処理
       function updateUsernameByIp(newName) {
         sessionStorage.setItem(SESSION_USER_KEY, newName);
         DOM.lobbyUsernameTag.textContent = newName;
@@ -677,7 +814,6 @@
           if (raw) map = JSON.parse(raw);
         } catch(e) {}
 
-        // IPとユーザー名の紐づけ情報をローカルストレージに記憶
         map[currentIp] = newName;
         localStorage.setItem(USER_MAP_KEY, JSON.stringify(map));
       }
@@ -709,13 +845,11 @@
         btnCreateConfirm: document.getElementById('btn-create-confirm'),
         inputNewRoomName: document.getElementById('input-new-room-name'),
         selectNewRoomType: document.getElementById('select-new-room-type'),
-        // パスコードモーダル用
         modalPasscode: document.getElementById('modal-passcode'),
         inputPasscode: document.getElementById('input-passcode'),
         btnPasscodeCancel: document.getElementById('btn-passcode-cancel'),
         btnPasscodeConfirm: document.getElementById('btn-passcode-confirm'),
         passcodeError: document.getElementById('passcode-error'),
-        // ユーザー名変更モーダル用
         modalUsername: document.getElementById('modal-change-username'),
         inputNewUsername: document.getElementById('input-new-username'),
         btnUsernameCancel: document.getElementById('btn-username-cancel'),
@@ -940,7 +1074,6 @@
         }
       });
 
-      // 設定パネルへの遷移イベント（パスキーでロック）
       DOM.btnToSettings.addEventListener('click', () => {
         DOM.inputPasscode.value = '';
         DOM.passcodeError.style.display = 'none';
@@ -962,7 +1095,6 @@
         }
       });
 
-      // ─── ユーザー名タップによる、暗証番号なし・その場での名前変更イベント ───
       DOM.lobbyUsernameTag.addEventListener('click', () => {
         DOM.inputNewUsername.value = getSessionUser();
         DOM.modalUsername.classList.add('active');
@@ -1022,25 +1154,986 @@
         }
       });
 
-      // 初始化処理：Supabase接続、および接続IP判定を完了したあとにLobbyを描画
       initSupabase();
       fetchUserIpAndInitName().then(() => {
         switchView('lobby');
       });
 
     })();
-  \x3C/script\x3E
+  \x3C\x2Fscript\x3E
 </body>
 </html>
 `;
-  // ─────────────────────────────────────────────────────────────────────────
 
-  /* ─── DOM要素参照 ─── */
+  // ─── [We talks: 1. ヨット/ヨッツ（Yacht / Dice Game）] 仮想ソースコードの定義 ─────────────────────
+  const YACHT_GAME_HTML = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>We talks Yacht Dice</title>
+  <style>
+    :root {
+      --primary: #06C755;
+      --bg: #1e293b;
+      --panel: #334155;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); padding: 12px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .header { background: var(--primary); padding: 12px; font-weight: bold; border-radius: 8px; text-align: center; margin-bottom: 12px; flex-shrink: 0; font-size:16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    
+    .lobby-screen, .game-screen { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .room-list { flex: 1; overflow-y: auto; list-style: none; margin-bottom: 12px; }
+    .room-item {
+      background: var(--panel); padding: 14px 16px; margin-bottom: 8px; border-radius: 8px;
+      display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.1s;
+    }
+    .room-item:hover { transform: translateY(-1px); }
+    .room-name { font-weight: bold; }
+    .room-players { font-size: 12px; color: var(--text-dim); }
+    
+    .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background-color 0.15s; }
+    .btn:hover { background: #05b042; }
+    .btn.secondary { background: #64748b; }
+    .btn.secondary:hover { background: #475569; }
+
+    /* ─── ヨットゲームボード ─── */
+    .game-board { display: flex; flex-direction: row; gap: 12px; flex: 1; overflow: hidden; }
+    .board-left { flex: 1.2; display: flex; flex-direction: column; gap: 12px; }
+    .board-right { flex: 0.8; background: var(--panel); border-radius: 8px; padding: 10px; overflow-y: auto; font-size: 12px; }
+    
+    /* ダイスエリア */
+    .dice-container { display: flex; gap: 8px; justify-content: center; padding: 10px 0; }
+    .dice {
+      width: 48px; height: 48px; background: white; color: #1e293b; border-radius: 8px;
+      font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); border: 3px solid transparent;
+      user-select: none; transition: transform 0.1s;
+    }
+    .dice.kept { border-color: #ea580c; background: #ffedd5; transform: scale(0.95); }
+    
+    /* 得点表 */
+    .score-table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 4px; }
+    .score-table th, .score-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .score-table th { background: rgba(0,0,0,0.2); color: var(--text-dim); font-size: 11px; }
+    .score-row { cursor: pointer; transition: background-color 0.1s; }
+    .score-row:hover:not(.scored) { background: rgba(255,255,255,0.05); }
+    .score-row.scored { cursor: not-allowed; opacity: 0.6; }
+    .score-val { text-align: right; font-weight: bold; color: var(--primary); }
+    .score-val.potential { color: #f59e0b; opacity: 0.8; }
+    
+    .game-status-bar { padding: 8px; background: rgba(0,0,0,0.15); border-radius: 6px; font-size: 13px; text-align: center; font-weight: bold; }
+  </style>
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C\x2Fscript\x3E
+</head>
+<body>
+
+  <div class="header" id="header-text">We talks Yacht Dice</div>
+
+  <!-- ロビー画面 -->
+  <div class="lobby-screen" id="lobby-screen">
+    <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px; text-align: center;">部屋コードを指定してオンライン対戦相手と繋がります</div>
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <input type="text" id="input-room-code" placeholder="部屋コードを入力 (例: 777)" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: var(--panel); color: white; outline: none; font-size: 14px;" />
+      <button class="btn" id="btn-join-room">部屋に入る / 作成</button>
+    </div>
+    <button class="btn secondary" id="btn-solo-play" style="width: 100%;">練習用ソロプレイ (オフライン)</button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div class="game-screen" id="game-screen" style="display: none;">
+    <div class="game-board">
+      
+      <!-- 左：ダイスロール・操作 -->
+      <div class="board-left">
+        <div class="game-status-bar" id="status-bar">対戦相手を待っています...</div>
+        
+        <div class="dice-container" id="dice-container">
+          <div class="dice" data-idx="0">⚀</div>
+          <div class="dice" data-idx="1">⚀</div>
+          <div class="dice" data-idx="2">⚀</div>
+          <div class="dice" data-idx="3">⚀</div>
+          <div class="dice" data-idx="4">⚀</div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <button class="btn" id="btn-roll" style="flex: 1;">サイコロを振る (残り3回)</button>
+          <button class="btn secondary" id="btn-leave-game" style="flex: 0.5;">退出</button>
+        </div>
+
+        <div style="font-size: 10px; color: var(--text-dim); text-align: center;">※キープしたいサイコロをタップして「サイコロを振る」を押してください。</div>
+      </div>
+
+      <!-- 右：スコアボード -->
+      <div class="board-right">
+        <h4 style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 6px; font-size: 13px;">スコアシート</h4>
+        <table class="score-table">
+          <thead>
+            <tr>
+              <th>役名</th>
+              <th style="text-align: right;">あなた</th>
+              <th style="text-align: right;" id="col-opp">相手</th>
+            </tr>
+          </thead>
+          <tbody id="score-rows-container">
+            <!-- 役一覧 -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  \x3Cscript\x3E
+    (function() {
+      'use strict';
+
+      // ─── 接続設定のロード ───
+      let supabaseClient = null;
+      let gameChannel = null;
+      const url = localStorage.getItem('wetalks_supabase_url') || 'https://nsyvlftqcciyetsbhymg.supabase.co';
+      const key = localStorage.getItem('wetalks_supabase_key') || 'sb_publishable_lkhrFuMlNyEmUX4RTFApKw_AhD1sAkV';
+      try {
+        supabaseClient = supabase.createClient(url, key);
+      } catch(e) {}
+
+      // ─── 状態管理 ───
+      let isSolo = false;
+      let myId = 'p-' + Math.floor(1000 + Math.random() * 9000);
+      let myName = sessionStorage.getItem('wetalks_session_user') || 'ゲスト';
+      let oppId = null;
+      let oppName = "対戦相手";
+
+      let diceValues = [1, 1, 1, 1, 1];
+      let diceKept = [false, false, false, false, false];
+      let rollCount = 0;
+      let isMyTurn = false;
+      let gameActive = false;
+
+      // ヨットの役定義
+      const CATEGORIES = [
+        { id: 'aces', name: '① エース', calc: d => sumOf(d, 1) },
+        { id: 'deuces', name: '② デュース', calc: d => sumOf(d, 2) },
+        { id: 'treys', name: '③ トレイ', calc: d => sumOf(d, 3) },
+        { id: 'fours', name: '④ フォー', calc: d => sumOf(d, 4) },
+        { id: 'fives', name: '⑤ ファイブ', calc: d => sumOf(d, 5) },
+        { id: 'sixes', name: '⑥ シックス', calc: d => sumOf(d, 6) },
+        { id: 'choice', name: '選択 (全合計)', calc: d => d.reduce((a, b) => a + b, 0) },
+        { id: 'four_kind', name: 'フォー・カインド', calc: d => hasOfKind(d, 4) ? d.reduce((a, b) => a + b, 0) : 0 },
+        { id: 'full_house', name: 'フルハウス', calc: d => isFullHouse(d) ? d.reduce((a, b) => a + b, 0) : 0 },
+        { id: 's_straight', name: 'S.ストレート', calc: d => isSmallStraight(d) ? 15 : 0 },
+        { id: 'l_straight', name: 'L.ストレート', calc: d => isLargeStraight(d) ? 30 : 0 },
+        { id: 'yacht', name: 'ヨット', calc: d => hasOfKind(d, 5) ? 50 : 0 }
+      ];
+
+      let myScores = {};
+      let oppScores = {};
+
+      const DOM = {
+        lobby: document.getElementById('lobby-screen'),
+        game: document.getElementById('game-screen'),
+        roomCode: document.getElementById('input-room-code'),
+        btnJoin: document.getElementById('btn-join-room'),
+        btnSolo: document.getElementById('btn-solo-play'),
+        statusBar: document.getElementById('status-bar'),
+        btnRoll: document.getElementById('btn-roll'),
+        btnLeave: document.getElementById('btn-leave-game'),
+        diceContainer: document.getElementById('dice-container'),
+        colOpp: document.getElementById('col-opp'),
+        scoreRows: document.getElementById('score-rows-container'),
+        headerText: document.getElementById('header-text')
+      };
+
+      // ─── ダイス役計算ヘルパー ───
+      function sumOf(d, val) { return d.filter(x => x === val).length * val; }
+      function hasOfKind(d, num) {
+        const counts = d.reduce((acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+        return Object.values(counts).some(c => c >= num);
+      }
+      function isFullHouse(d) {
+        const counts = d.reduce((acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+        const vals = Object.values(counts);
+        return (vals.includes(3) && vals.includes(2)) || vals.includes(5);
+      }
+      function isSmallStraight(d) {
+        const unique = Array.from(new Set(d)).sort().join("");
+        return unique.includes("1234") || unique.includes("2345") || unique.includes("3456");
+      }
+      function isLargeStraight(d) {
+        const unique = Array.from(new Set(d)).sort().join("");
+        return unique === "12345" || unique === "23456";
+      }
+
+      // ─── ダイス表示更新 ───
+      const DICE_CHARS = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+      function updateDiceUI() {
+        DOM.diceContainer.querySelectorAll('.dice').forEach((dice, idx) => {
+          dice.textContent = DICE_CHARS[diceValues[idx]];
+          dice.classList.toggle('kept', diceKept[idx]);
+        });
+      }
+
+      // スコアボード描画
+      function updateScoreboard() {
+        DOM.scoreRows.innerHTML = '';
+        CATEGORIES.forEach(cat => {
+          const tr = document.createElement('tr');
+          tr.className = 'score-row';
+          if (myScores[cat.id] !== undefined) tr.classList.add('scored');
+
+          const tdName = document.createElement('td');
+          tdName.textContent = cat.name;
+
+          const tdMy = document.createElement('td');
+          tdMy.className = 'score-val';
+          if (myScores[cat.id] !== undefined) {
+            tdMy.textContent = myScores[cat.id];
+          } else if (rollCount > 0 && isMyTurn && gameActive) {
+            tdMy.textContent = cat.calc(diceValues);
+            tdMy.classList.add('potential');
+            // 行クリックで役を確定
+            tr.addEventListener('click', () => selectCategory(cat.id));
+          } else {
+            tdMy.textContent = '-';
+          }
+
+          const tdOpp = document.createElement('td');
+          tdOpp.className = 'score-val';
+          tdOpp.textContent = oppScores[cat.id] !== undefined ? oppScores[cat.id] : '-';
+          if (isSolo) tdOpp.style.display = 'none';
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdMy);
+          tr.appendChild(tdOpp);
+          DOM.scoreRows.appendChild(tr);
+        });
+
+        // 合計点の追加
+        const totalTr = document.createElement('tr');
+        totalTr.style.background = 'rgba(255,255,255,0.05)';
+        totalTr.style.fontWeight = 'bold';
+        const tdTotalName = document.createElement('td');
+        tdTotalName.textContent = '合計得点';
+        const tdMyTotal = document.createElement('td');
+        tdMyTotal.className = 'score-val';
+        tdMyTotal.textContent = Object.values(myScores).reduce((a,b)=>a+b, 0);
+        const tdOppTotal = document.createElement('td');
+        tdOppTotal.className = 'score-val';
+        tdOppTotal.textContent = Object.values(oppScores).reduce((a,b)=>a+b, 0);
+        if (isSolo) tdOppTotal.style.display = 'none';
+
+        totalTr.appendChild(tdTotalName);
+        totalTr.appendChild(tdMyTotal);
+        totalTr.appendChild(tdOppTotal);
+        DOM.scoreRows.appendChild(totalTr);
+      }
+
+      // ─── ゲーム進行ロジック ───
+      function selectCategory(catId) {
+        if (!isMyTurn || myScores[catId] !== undefined || rollCount === 0) return;
+        
+        const score = CATEGORIES.find(c => c.id === catId).calc(diceValues);
+        myScores[catId] = score;
+
+        // キープ解除
+        diceKept = [false, false, false, false, false];
+        rollCount = 0;
+
+        if (isSolo) {
+          checkGameOver();
+        } else {
+          isMyTurn = false;
+          sendGameState();
+        }
+        updateScoreboard();
+        updateDiceUI();
+        updateGameStatus();
+      }
+
+      function rollDice() {
+        if (!isMyTurn || rollCount >= 3) return;
+        for (let i = 0; i < 5; i++) {
+          if (!diceKept[i]) {
+            diceValues[i] = Math.floor(Math.random() * 6) + 1;
+          }
+        }
+        rollCount++;
+        DOM.btnRoll.textContent = "サイコロを振る (残り" + (3 - rollCount) + "回)";
+        if (rollCount >= 3) DOM.btnRoll.disabled = true;
+
+        updateDiceUI();
+        updateScoreboard();
+        
+        if (!isSolo) {
+          sendGameState();
+        }
+      }
+
+      // ─── Supabaseリアルタイム同期 ───
+      function joinRoom(roomCode) {
+        if (!supabaseClient) return alert("シミュレーターの設定でSupabaseが連携されていないため動作しません。");
+        
+        isSolo = false;
+        DOM.colOpp.style.display = 'table-cell';
+        DOM.headerText.textContent = "Yacht Room: " + roomCode;
+        
+        DOM.lobby.style.display = 'none';
+        DOM.game.style.display = 'flex';
+
+        // 部屋のチャンネルをリッスン
+        gameChannel = supabaseClient.channel('yacht-' + roomCode);
+        gameChannel
+          .on('broadcast', { event: 'join' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              oppId = payload.id;
+              oppName = payload.name;
+              // 挨拶を返す
+              gameChannel.send({ type: 'broadcast', event: 'welcome', payload: { id: myId, name: myName, start: true } });
+              gameActive = true;
+              isMyTurn = true; // 部屋を立てた人が先攻
+              updateGameStatus();
+              updateScoreboard();
+            }
+          })
+          .on('broadcast', { event: 'welcome' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              oppId = payload.id;
+              oppName = payload.name;
+              gameActive = true;
+              isMyTurn = false; // 誘われた人が後攻
+              updateGameStatus();
+              updateScoreboard();
+            }
+          })
+          .on('broadcast', { event: 'state' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              diceValues = payload.diceValues;
+              oppScores = payload.scores;
+              
+              // 相手が役を記入した場合、手番が移る
+              if (payload.turnEnded) {
+                isMyTurn = true;
+                rollCount = 0;
+                diceKept = [false, false, false, false, false];
+                DOM.btnRoll.textContent = "サイコロを振る (残り3回)";
+              }
+              updateDiceUI();
+              updateScoreboard();
+              updateGameStatus();
+            }
+          })
+          .on('broadcast', { event: 'leave' }, () => {
+            alert("対戦相手が退出しました。");
+            leaveGame();
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              // 参加をアナウンス
+              gameChannel.send({ type: 'broadcast', event: 'join', payload: { id: myId, name: myName } });
+            }
+          });
+      }
+
+      function sendGameState() {
+        if (!gameChannel) return;
+        gameChannel.send({
+          type: 'broadcast',
+          event: 'state',
+          payload: {
+            id: myId,
+            diceValues: diceValues,
+            scores: myScores,
+            turnEnded: (rollCount === 0) // rollCountがリセット＝確定手番終了
+          }
+        });
+      }
+
+      function startSoloPlay() {
+        isSolo = true;
+        DOM.colOpp.style.display = 'none';
+        DOM.headerText.textContent = "We talks Yacht (Solo)";
+        DOM.lobby.style.display = 'none';
+        DOM.game.style.display = 'flex';
+        gameActive = true;
+        isMyTurn = true;
+        
+        myScores = {};
+        oppScores = {};
+        rollCount = 0;
+        diceValues = [1, 1, 1, 1, 1];
+        diceKept = [false, false, false, false, false];
+
+        updateDiceUI();
+        updateScoreboard();
+        updateGameStatus();
+      }
+
+      function leaveGame() {
+        if (gameChannel) {
+          gameChannel.send({ type: 'broadcast', event: 'leave', payload: { id: myId } });
+          supabaseClient.removeChannel(gameChannel);
+          gameChannel = null;
+        }
+        isSolo = false;
+        gameActive = false;
+        myScores = {};
+        oppScores = {};
+        DOM.lobby.style.display = 'flex';
+        DOM.game.style.display = 'none';
+        DOM.headerText.textContent = "We talks Yacht Dice";
+      }
+
+      // ─── イベント登録 ───
+      DOM.btnJoin.addEventListener('click', () => {
+        const code = DOM.roomCode.value.trim();
+        if (code) joinRoom(code);
+      });
+      DOM.btnSolo.addEventListener('click', startSoloPlay);
+      DOM.btnLeave.addEventListener('click', leaveGame);
+
+      DOM.btnRoll.addEventListener('click', rollDice);
+
+      DOM.diceContainer.querySelectorAll('.dice').forEach(dice => {
+        dice.addEventListener('click', () => {
+          const idx = parseInt(dice.getAttribute('data-idx'));
+          toggleKeep(idx);
+        });
+      });
+
+    })();
+  \x3C\x2Fscript\x3E
+</body>
+</html>
+`;
+
+  // ─── [We talks: 2. UNO風ゲーム（UNO Card Game）] 仮想ソースコードの定義 ───────────────────
+  const UNO_GAME_HTML = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>We talks UNO</title>
+  <style>
+    :root {
+      --primary: #06C755;
+      --bg: #151515;
+      --panel: #222222;
+      --text: #f5f5f5;
+      --text-dim: #999;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); padding: 12px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .header { background: var(--primary); padding: 12px; font-weight: bold; border-radius: 8px; text-align: center; margin-bottom: 12px; flex-shrink: 0; font-size:16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    
+    .lobby-screen, .game-screen { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background-color 0.15s; }
+    .btn:hover { background: #05b042; }
+    .btn.secondary { background: #444; }
+    .btn.secondary:hover { background: #333; }
+
+    /* ─── ゲームエリア ─── */
+    .game-area { display: flex; flex-direction: column; flex: 1; justify-content: space-between; overflow: hidden; gap: 8px; }
+    
+    /* 対戦相手の手札（枚数だけ表示） */
+    .opponent-hand-area { background: var(--panel); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .opponent-cards { display: flex; gap: -15px; } /* 重なるようにマイナスマージン */
+    .card-back {
+      width: 44px; height: 66px; background: radial-gradient(circle, #f43f5e 60%, #9f1239 100%);
+      border: 2px solid white; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: bold; color: yellow; transform: scale(0.9); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* フィールド（山札と捨て札） */
+    .field-area { display: flex; flex: 1; align-items: center; justify-content: center; gap: 32px; background: rgba(255,255,255,0.02); border-radius: 8px; position: relative; }
+    .pile-container { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    
+    /* リアルなUNO風のカードグラフィック */
+    .card {
+      width: 54px; height: 80px; border-radius: 8px; border: 3px solid white;
+      display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px;
+      color: white; cursor: pointer; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      user-select: none; transition: transform 0.12s, margin-top 0.12s;
+    }
+    .card:hover { transform: translateY(-8px) scale(1.05); z-index: 10; }
+    .card.red { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+    .card.yellow { background: linear-gradient(135deg, #eab308, #a16207); color: #000; border-color: #000; }
+    .card.green { background: linear-gradient(135deg, #22c55e, #15803d); }
+    .card.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .card.wild { background: linear-gradient(135deg, #1e1e1e, #111111); }
+
+    /* プレイヤーの手札 */
+    .player-hand-area { background: var(--panel); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; }
+    .player-cards { display: flex; gap: 4px; overflow-x: auto; width: 100%; justify-content: center; padding: 6px 0; }
+    
+    .status-bar { padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 13px; text-align: center; font-weight: bold; width: 100%; }
+  </style>
+  \x3Cscript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"\x3E\x3C/script\x3E
+</head>
+<body>
+
+  <div class="header" id="header-text">We talks UNO</div>
+
+  <!-- ロビー画面 -->
+  <div class="lobby-screen" id="lobby-screen">
+    <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px; text-align: center;">部屋コードを指定してオンライン対戦相手と繋がります</div>
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <input type="text" id="input-room-code" placeholder="部屋コードを入力 (例: 888)" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: var(--panel); color: white; outline: none; font-size: 14px;" />
+      <button class="btn" id="btn-join-room">部屋に入る / 作成</button>
+    </div>
+    <button class="btn secondary" id="btn-ai-play" style="width: 100%;">練習用AI対戦プレイ (オフライン)</button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div class="game-screen" id="game-screen" style="display: none;">
+    <div class="game-area">
+      
+      <!-- 対戦相手のエントリ -->
+      <div class="opponent-hand-area">
+        <span id="opp-name-tag" style="font-size: 12px; font-weight: bold;">AI対戦相手 (手札: 7枚)</span>
+        <div class="opponent-cards" id="opp-cards-container">
+          <!-- 相手のカードの背裏が並びます -->
+        </div>
+      </div>
+
+      <!-- フィールド(山札・捨て札) -->
+      <div class="field-area">
+        <div class="pile-container">
+          <div class="card-back" id="btn-draw" style="cursor: pointer; width: 56px; height: 82px; font-size: 11px;">山札<br>引く</div>
+        </div>
+        <div class="pile-container">
+          <span style="font-size:11px; color: var(--text-dim);">場札</span>
+          <div id="discard-card-container">
+            <!-- 捨て札 -->
+          </div>
+        </div>
+
+        <button class="btn secondary" id="btn-leave-game" style="position: absolute; right: 12px; bottom: 12px; padding: 6px 12px; font-size:11px;">退出</button>
+      </div>
+
+      <!-- プレイヤー側の操作エリア -->
+      <div class="player-hand-area">
+        <div class="status-bar" id="status-bar">山札から引くか、出せるカードを出してください。</div>
+        <div class="player-cards" id="player-cards-container">
+          <!-- あなたの手札 -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  \x3Cscript\x3E
+    (function() {
+      'use strict';
+
+      // ─── 接続設定のロード ───
+      let supabaseClient = null;
+      let gameChannel = null;
+      const url = localStorage.getItem('wetalks_supabase_url') || 'https://nsyvlftqcciyetsbhymg.supabase.co';
+      const key = localStorage.getItem('wetalks_supabase_key') || 'sb_publishable_lkhrFuMlNyEmUX4RTFApKw_AhD1sAkV';
+      try {
+        supabaseClient = supabase.createClient(url, key);
+      } catch(e) {}
+
+      // ─── 状態管理 ───
+      let isSolo = false; // AI対戦モード
+      let myId = 'p-' + Math.floor(1000 + Math.random() * 9000);
+      let myName = sessionStorage.getItem('wetalks_session_user') || 'ゲスト';
+      let oppId = null;
+      let oppName = "対戦相手";
+
+      let myHand = [];
+      let oppHandCount = 0; // オンライン対戦用
+      let oppHand = []; // AI対戦用
+      
+      let discardPile = [];
+      let activeColor = '';
+      let isMyTurn = false;
+      let gameActive = false;
+
+      const COLORS = ['red', 'yellow', 'green', 'blue'];
+      const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Draw2'];
+
+      const DOM = {
+        lobby: document.getElementById('lobby-screen'),
+        game: document.getElementById('game-screen'),
+        roomCode: document.getElementById('input-room-code'),
+        btnJoin: document.getElementById('btn-join-room'),
+        btnAI: document.getElementById('btn-ai-play'),
+        statusBar: document.getElementById('status-bar'),
+        btnDraw: document.getElementById('btn-draw'),
+        btnLeave: document.getElementById('btn-leave-game'),
+        oppNameTag: document.getElementById('opp-name-tag'),
+        oppCardsContainer: document.getElementById('opp-cards-container'),
+        playerCardsContainer: document.getElementById('player-cards-container'),
+        discardContainer: document.getElementById('discard-card-container'),
+        headerText: document.getElementById('header-text')
+      };
+
+      // ─── カードの生成・描画ヘルパー ───
+      function createRandomCard() {
+        if (Math.random() < 0.1) {
+          return { color: 'wild', value: 'Wild' };
+        }
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        const value = VALUES[Math.floor(Math.random() * VALUES.length)];
+        return { color, value };
+      }
+
+      function buildCardDOM(card, isPlayable = false, clickHandler = null) {
+        const div = document.createElement('div');
+        div.className = 'card ' + card.color;
+        
+        let label = card.value;
+        if (card.value === 'Draw2') label = '+2';
+        if (card.value === 'Wild') label = 'W';
+        div.textContent = label;
+
+        if (isPlayable && clickHandler) {
+          div.addEventListener('click', clickHandler);
+        }
+        return div;
+      }
+
+      // ルームUI更新
+      function updateUI() {
+        if (!gameActive) return;
+
+        // 1. 捨て札(場札)の描画
+        DOM.discardContainer.innerHTML = '';
+        if (discardPile.length > 0) {
+          const topCard = discardPile[discardPile.length - 1];
+          // ワイルドカードの場合は、選択したアクティブ色を適用
+          const displayCard = { ...topCard };
+          if (topCard.color === 'wild' && activeColor) displayCard.color = activeColor;
+          
+          DOM.discardContainer.appendChild(buildCardDOM(displayCard));
+        }
+
+        // 2. あなたの手札
+        DOM.playerCardsContainer.innerHTML = '';
+        myHand.forEach((card, idx) => {
+          const playable = isMyTurn && canPlay(card);
+          const dom = buildCardDOM(card, playable, () => playCard(idx));
+          if (!playable) dom.style.opacity = '0.5';
+          DOM.playerCardsContainer.appendChild(dom);
+        });
+
+        // 3. 相手の手札（裏面表示）
+        DOM.oppCardsContainer.innerHTML = '';
+        const count = isSolo ? oppHand.length : oppHandCount;
+        for (let i = 0; i < count; i++) {
+          const cardBack = document.createElement('div');
+          cardBack.className = 'card-back';
+          cardBack.textContent = 'UNO';
+          DOM.oppCardsContainer.appendChild(cardBack);
+        }
+        DOM.oppNameTag.textContent = oppName + " (手札: " + count + "枚)";
+
+        // 4. ステータス・手番の案内
+        if (isMyTurn) {
+          DOM.statusBar.textContent = "🟢 あなたの手番です。場札に合うカードを出すか、山札から引いてください。";
+          DOM.btnDraw.style.pointerEvents = 'auto';
+          DOM.btnDraw.style.opacity = '1';
+        } else {
+          DOM.statusBar.textContent = "🔴 " + oppName + " の手番です。相手の操作を待っています...";
+          DOM.btnDraw.style.pointerEvents = 'none';
+          DOM.btnDraw.style.opacity = '0.5';
+        }
+
+        checkGameOver();
+      }
+
+      // ルールチェック
+      function canPlay(card) {
+        if (discardPile.length === 0) return true;
+        const top = discardPile[discardPile.length - 1];
+        
+        // ワイルドカードはいつでも出せる
+        if (card.color === 'wild') return true;
+
+        // 色がマッチしている（場がワイルドの時は選択したアクティブ色が対象）
+        const topColor = top.color === 'wild' ? activeColor : top.color;
+        if (card.color === topColor) return true;
+
+        // 値がマッチしている
+        if (card.value === top.value) return true;
+
+        return false;
+      }
+
+      // カードを出す
+      function playCard(idx) {
+        if (!isMyTurn) return;
+        const card = myHand.splice(idx, 1)[0];
+        discardPile.push(card);
+
+        // 特殊効果の反映
+        let turnSkip = false;
+        let drawPenalty = 0;
+
+        if (card.color === 'wild') {
+          activeColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+          DOM.statusBar.textContent = "ワイルドが指定されました！次の色は " + activeColor.toUpperCase();
+        } else {
+          activeColor = card.color;
+        }
+
+        if (card.value === 'Skip') turnSkip = true;
+        if (card.value === 'Draw2') drawPenalty = 2;
+
+        isMyTurn = false;
+
+        if (isSolo) {
+          // AI処理へ転送
+          updateUI();
+          if (drawPenalty > 0) {
+            for (let i = 0; i < drawPenalty; i++) oppHand.push(createRandomCard());
+          }
+          if (turnSkip) {
+            isMyTurn = true; // スキップされたので再び自分の番
+            setTimeout(updateUI, 1000);
+          } else {
+            setTimeout(aiTurn, 1500);
+          }
+        } else {
+          // オンライン処理
+          sendGameState(turnSkip, drawPenalty);
+          updateUI();
+        }
+      }
+
+      // 山札からカードを引く
+      function drawCard() {
+        if (!isMyTurn) return;
+        myHand.push(createRandomCard());
+
+        isMyTurn = false;
+
+        if (isSolo) {
+          updateUI();
+          setTimeout(aiTurn, 1200);
+        } else {
+          sendGameState(false, 0);
+          updateUI();
+        }
+      }
+
+      // ゲーム終了条件
+      function checkGameOver() {
+        if (!gameActive) return;
+        
+        if (myHand.length === 0) {
+          gameActive = false;
+          isMyTurn = false;
+          DOM.statusBar.textContent = "🏆 あなたの勝利！すべてのカードを出し切りました！";
+          alert("おめでとうございます！あなたの勝利です！");
+        } else if ((isSolo && oppHand.length === 0) || (!isSolo && oppHandCount === 0 && oppId)) {
+          gameActive = false;
+          isMyTurn = false;
+          DOM.statusBar.textContent = "敗北... " + oppName + " が先にカードを出し切りました。";
+          alert("残念... " + oppName + "の勝利です。");
+        }
+      }
+
+      // ─── AI (オフライン) 手番処理 ───
+      function aiTurn() {
+        if (!gameActive) return;
+        
+        let playIdx = -1;
+        for (let i = 0; i < oppHand.length; i++) {
+          if (canPlay(oppHand[i])) {
+            playIdx = i;
+            break;
+          }
+        }
+
+        if (playIdx !== -1) {
+          const card = oppHand.splice(playIdx, 1)[0];
+          discardPile.push(card);
+
+          let turnSkip = false;
+          let drawPenalty = 0;
+
+          if (card.color === 'wild') {
+            activeColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+          } else {
+            activeColor = card.color;
+          }
+
+          if (card.value === 'Skip') turnSkip = true;
+          if (card.value === 'Draw2') drawPenalty = 2;
+
+          if (drawPenalty > 0) {
+            for (let i = 0; i < drawPenalty; i++) myHand.push(createRandomCard());
+          }
+
+          if (turnSkip) {
+            setTimeout(aiTurn, 1500);
+          } else {
+            isMyTurn = true;
+          }
+        } else {
+          oppHand.push(createRandomCard());
+          isMyTurn = true;
+        }
+
+        updateUI();
+      }
+
+      // ─── Supabaseリアルタイム同期 ───
+      function joinRoom(roomCode) {
+        if (!supabaseClient) return alert("シミュレーターの設定でSupabaseが連携されていないため動作しません。");
+        
+        isSolo = false;
+        DOM.headerText.textContent = "UNO Room: " + roomCode;
+        DOM.lobby.style.display = 'none';
+        DOM.game.style.display = 'flex';
+
+        myHand = Array.from({ length: 7 }, createRandomCard);
+        oppHandCount = 7;
+        discardPile = [{ color: 'red', value: '5' }];
+        activeColor = 'red';
+
+        gameChannel = supabaseClient.channel('uno-' + roomCode);
+        gameChannel
+          .on('broadcast', { event: 'join' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              oppId = payload.id;
+              oppName = payload.name;
+              gameChannel.send({ type: 'broadcast', event: 'welcome', payload: { id: myId, name: myName, handCount: myHand.length, discard: discardPile } });
+              gameActive = true;
+              isMyTurn = true;
+              updateUI();
+            }
+          })
+          .on('broadcast', { event: 'welcome' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              oppId = payload.id;
+              oppName = payload.name;
+              oppHandCount = payload.handCount;
+              discardPile = payload.discard;
+              gameActive = true;
+              isMyTurn = false;
+              updateUI();
+            }
+          })
+          .on('broadcast', { event: 'state' }, ({ payload }) => {
+            if (payload.id !== myId) {
+              oppHandCount = payload.handCount;
+              discardPile = payload.discard;
+              activeColor = payload.activeColor;
+
+              if (payload.drawPenalty > 0) {
+                for (let i = 0; i < payload.drawPenalty; i++) {
+                  myHand.push(createRandomCard());
+                }
+              }
+
+              if (payload.turnSkip) {
+                isMyTurn = false;
+                gameChannel.send({
+                  type: 'broadcast',
+                  event: 'state',
+                  payload: { id: myId, handCount: myHand.length, discard: discardPile, activeColor: activeColor, turnSkip: false, drawPenalty: 0, myTurnNext: true }
+                });
+              } else if (payload.myTurnNext || !payload.turnSkip) {
+                isMyTurn = true;
+              }
+
+              updateUI();
+            }
+          })
+          .on('broadcast', { event: 'leave' }, () => {
+            alert("対戦相手が退出しました。");
+            leaveGame();
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              gameChannel.send({ type: 'broadcast', event: 'join', payload: { id: myId, name: myName } });
+            }
+          });
+      }
+
+      function sendGameState(turnSkip = false, drawPenalty = 0) {
+        if (!gameChannel) return;
+        gameChannel.send({
+          type: 'broadcast',
+          event: 'state',
+          payload: {
+            id: myId,
+            handCount: myHand.length,
+            discard: discardPile,
+            activeColor: activeColor,
+            turnSkip: turnSkip,
+            drawPenalty: drawPenalty,
+            myTurnNext: false
+          }
+        });
+      }
+
+      function startAIGame() {
+        isSolo = true;
+        oppName = "AI対戦相手";
+        DOM.headerText.textContent = "We talks UNO (vs AI)";
+        DOM.lobby.style.display = 'none';
+        DOM.game.style.display = 'flex';
+
+        myHand = Array.from({ length: 7 }, createRandomCard);
+        oppHand = Array.from({ length: 7 }, createRandomCard);
+        discardPile = [{ color: 'blue', value: '7' }];
+        activeColor = 'blue';
+
+        gameActive = true;
+        isMyTurn = true;
+
+        updateUI();
+      }
+
+      function leaveGame() {
+        if (gameChannel) {
+          gameChannel.send({ type: 'broadcast', event: 'leave', payload: { id: myId } });
+          supabaseClient.removeChannel(gameChannel);
+          gameChannel = null;
+        }
+        isSolo = false;
+        gameActive = false;
+        DOM.lobby.style.display = 'flex';
+        DOM.game.style.display = 'none';
+        DOM.headerText.textContent = "We talks UNO";
+      }
+
+      // ─── イベント登録 ───
+      DOM.btnJoin.addEventListener('click', () => {
+        const code = DOM.roomCode.value.trim();
+        if (code) joinRoom(code);
+      });
+      DOM.btnAI.addEventListener('click', startAIGame);
+      DOM.btnLeave.addEventListener('click', leaveGame);
+      DOM.btnDraw.addEventListener('click', drawCard);
+
+    })();
+  \x3C\x2Fscript\x3E
+</body>
+</html>
+`;
+
+  // ─── DOM要素参照 ───
   const DOMElements = {
     body: document.body,
     tabBar: document.getElementById('tab-bar'),
     newTabBtn: document.getElementById('new-tab-btn'),
     contentEl: document.getElementById('content-area'),
+    leftPane: document.getElementById('left-pane'), // 100%確実に崩壊を防ぐためキャッシュ化
     urlBar: document.getElementById('url-bar'),
     urlLock: document.getElementById('url-bar-lock'),
     btnBack: document.getElementById('btn-back'),
@@ -1054,10 +2147,14 @@
     consoleRun: document.getElementById('console-run-btn'),
     btnSettings: document.getElementById('btn-settings'),
     settingsPanel: document.getElementById('settings-panel'),
+    btnSplit: document.getElementById('btn-split'),
+    rightPane: document.getElementById('right-pane'),
+    splitChatFrame: document.getElementById('split-chat-frame')
   };
 
   /* ─── 状態変数 ─── */
   let tabs = [], activeId = null, idCounter = 0;
+  let isSplitActive = false; // 画面分割ステート
 
   // ─── 設定管理 ────────────────────────────────────────────────────────
   const I18N = {
@@ -1125,7 +2222,7 @@
     } else if (cmd === 'view-source') {
         const activeTab = tabs.find(t => t.id === activeId);
         if (!activeTab || !activeTab.url) return void writeToConsole("エラー: 開いているWebページがありません。", true);
-        const iframe = DOMElements.contentEl.querySelector(`iframe[data-tabid="${activeId}"]`);
+        const iframe = DOMElements.leftPane.querySelector(`iframe[data-tabid="${activeId}"]`);
         if (!iframe) return void writeToConsole("エラー: ソースを取得可能なフレームが存在しません。", true);
         try {
           if (iframe.contentDocument && iframe.contentDocument.documentElement) {
@@ -1153,14 +2250,17 @@
   function getBookmarks() {
     const data = localStorage.getItem("my_browser_bookmarks");
     return data ? JSON.parse(data) : [
+      { label: "取扱説明書", url: "https://guide.info", icon: "ℹ️" },
       { label: "Wikipedia", url: "https://ja.wikipedia.org", icon: "📖" },
-      { label: "We talks", url: "https://wetalks.chat", icon: "💬" }
+      { label: "We talks", url: "https://wetalks.chat", icon: "💬" },
+      { label: "ヨットゲーム", url: "https://yacht.game", icon: "🎲" },
+      { label: "UNOゲーム", url: "https://uno.game", icon: "🃏" }
     ];
   }
   function saveBookmarks(bms) {
     localStorage.setItem("my_browser_bookmarks", JSON.stringify(bms));
   }
-  const FAVICON_MAP = { "wikipedia.org": "📖", "reddit.com": "📰", "amazon.co.jp": "📦", "amazon.com": "📦", "wetalks.chat": "💬" };
+  const FAVICON_MAP = { "wikipedia.org": "📖", "reddit.com": "📰", "amazon.co.jp": "📦", "amazon.com": "📦", "wetalks.chat": "💬", "yacht.game": "🎲", "uno.game": "🃏", "guide.info": "ℹ️" };
   function getFavicon(url) {
     try {
       const host = (new URL(url)).hostname.replace(/^www\./, "");
@@ -1186,7 +2286,7 @@
       case 'images':
         return "https://www.bing.com/images/search?q=" + encoded;
       case 'videos':
-        return "https://www.bing.com/videos/search?q=" + encoded + "&&view=detail&mid";
+        return "https://www.bing.com/videos/search?q=" + encoded;
       case 'maps':
         return "https://www.bing.com/maps/search?q=" + encoded;
       case 'all':
@@ -1373,7 +2473,7 @@
   }
 
   function showPage(tabId) {
-    DOMElements.contentEl.querySelectorAll("[data-tabid]").forEach(p => {
+    DOMElements.leftPane.querySelectorAll("[data-tabid]").forEach(p => {
       p.classList.toggle("active", +p.getAttribute("data-tabid") === tabId);
     });
   }
@@ -1398,6 +2498,21 @@
     }
   }
 
+  // ─── 【重要】ゲーム起動時のみに画面分割を完全自動トリガーする関数 ───
+  function checkAndApplySplitScreen(tab) {
+    if (tab && (tab.url === 'https://yacht.game' || tab.url === 'https://uno.game' || tab.url === 'http://yacht.game' || tab.url === 'http://uno.game')) {
+      isSplitActive = true;
+      DOMElements.body.classList.add('split-active');
+      if (!DOMElements.splitChatFrame.srcdoc) {
+        DOMElements.splitChatFrame.srcdoc = CHAT_APP_HTML;
+      }
+    } else {
+      isSplitActive = false;
+      DOMElements.body.classList.remove('split-active');
+      DOMElements.splitChatFrame.srcdoc = '';
+    }
+  }
+
   function activateTab(id) {
     activeId = id;
     showPage(id);
@@ -1405,14 +2520,16 @@
     updateUrlBar(tab);
     updateNav(tab);
     renderTabs();
+    checkAndApplySplitScreen(tab); // タブ切り替え時の自動判定
   }
 
   function openTab(url) {
     const id = ++idCounter;
-    const tab = { id: id, title: "新しいタブ", favicon: "🌐", url: null, history: [], fontIdx: -1 };
+    // 履歴管理用変数のタイポを修正 (histIdx)
+    const tab = { id: id, title: "新しいタブ", favicon: "🌐", url: null, history: [], histIdx: -1 };
     tabs.push(tab);
     const ntPage = buildNTPage(id);
-    DOMElements.contentEl.appendChild(ntPage);
+    DOMElements.leftPane.appendChild(ntPage);
     activateTab(id);
     if (url) setTimeout(() => navigateTo(id, url), 0);
   }
@@ -1455,17 +2572,29 @@
       updateNav(tab);
     }
 
-    DOMElements.contentEl.querySelectorAll(`[data-tabid="${tabId}"]`).forEach(e => e.remove());
+    DOMElements.leftPane.querySelectorAll(`[data-tabid="${tabId}"]`).forEach(e => e.remove());
     startLoading();
 
     const iframe = document.createElement("iframe");
     iframe.className = "page-frame" + (activeId === tabId ? " active" : "");
     iframe.setAttribute("data-tabid", tabId);
     
-    // We talksのルーティング
+    // 【各種仮想アドレスのルーティング定義】
     if (url === 'https://wetalks.chat' || url === 'http://wetalks.chat') {
       iframe.setAttribute("title", "We talks");
       iframe.srcdoc = CHAT_APP_HTML;
+      finishLoading();
+    } else if (url === 'https://yacht.game' || url === 'http://yacht.game') {
+      iframe.setAttribute("title", "ヨットゲーム");
+      iframe.srcdoc = YACHT_GAME_HTML;
+      finishLoading();
+    } else if (url === 'https://uno.game' || url === 'http://uno.game') {
+      iframe.setAttribute("title", "UNOゲーム");
+      iframe.srcdoc = UNO_GAME_HTML;
+      finishLoading();
+    } else if (url === 'https://guide.info' || url === 'http://guide.info') {
+      iframe.setAttribute("title", "Browser取扱説明書");
+      iframe.srcdoc = GUIDE_PAGE_HTML;
       finishLoading();
     } else {
       iframe.setAttribute("title", tab.title);
@@ -1497,12 +2626,15 @@
         iframe.remove();
         const err = buildErrorPage(tabId, url);
         if (activeId === tabId) err.classList.add("active");
-        DOMElements.contentEl.appendChild(err);
+        DOMElements.leftPane.appendChild(err);
       });
     }
 
-    DOMElements.contentEl.appendChild(iframe);
+    DOMElements.leftPane.appendChild(iframe);
     renderTabs();
+    if (activeId === tabId) {
+      checkAndApplySplitScreen(tab); // ページ遷移時の自動画面分割判定
+    }
   }
 
   function historyGo(delta) {
@@ -1522,7 +2654,7 @@
       updateNav(tab);
       renderTabs();
 
-      DOMElements.contentEl.querySelectorAll(`[data-tabid="${activeId}"]`).forEach(e => e.remove());
+      DOMElements.leftPane.querySelectorAll(`[data-tabid="${activeId}"]`).forEach(e => e.remove());
       startLoading();
 
       const iframe = document.createElement("iframe");
@@ -1531,6 +2663,15 @@
 
       if (url === 'https://wetalks.chat' || url === 'http://wetalks.chat') {
         iframe.srcdoc = CHAT_APP_HTML;
+        finishLoading();
+      } else if (url === 'https://yacht.game' || url === 'http://yacht.game') {
+        iframe.srcdoc = YACHT_GAME_HTML;
+        finishLoading();
+      } else if (url === 'https://uno.game' || url === 'http://uno.game') {
+        iframe.srcdoc = UNO_GAME_HTML;
+        finishLoading();
+      } else if (url === 'https://guide.info' || url === 'http://guide.info') {
+        iframe.srcdoc = GUIDE_PAGE_HTML;
         finishLoading();
       } else {
         iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation");
@@ -1543,7 +2684,8 @@
           } catch (_) {}
         });
       }
-      DOMElements.contentEl.appendChild(iframe);
+      DOMElements.leftPane.appendChild(iframe);
+      checkAndApplySplitScreen(tab); // 履歴移動時の自動画面分割判定
     }
   }
 
@@ -1557,7 +2699,7 @@
   DOMElements.btnFwd.addEventListener('click', () => historyGo(1));
   
   DOMElements.btnReload.addEventListener('click', () => {
-    const iframe = DOMElements.contentEl.querySelector(`iframe[data-tabid="${activeId}"]`);
+    const iframe = DOMElements.leftPane.querySelector(`iframe[data-tabid="${activeId}"]`);
     if (iframe) {
       startLoading();
       if (iframe.srcdoc) {
@@ -1585,7 +2727,7 @@
     saveSettings();
     applySettings();
   });
-  
+
   // コンソール関係
   DOMElements.btnConsole.addEventListener('click', () => {
     DOMElements.consolePanel.classList.toggle('active');
@@ -1609,7 +2751,7 @@
 
   // ─── 初期処理 ───
   loadSettings();
-  openTab('https://ja.wikipedia.org');
+  openTab('https://guide.info'); // 初期起動時にマニュアル(取扱説明書)を自動表示
 
 })();
 </script>
